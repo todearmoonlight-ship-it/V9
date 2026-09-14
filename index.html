@@ -300,8 +300,8 @@
   <!-- ================= 1. 封面頁 (SPLASH SCREEN) ================= -->
   <div id="splash-screen" class="fixed inset-0 z-50 max-w-md mx-auto bg-cover bg-center flex flex-col justify-between p-6 text-white text-center shadow-2xl" style="background-image: url('./cover.jpg');">
     <div class="mt-auto pb-8 space-y-3 w-full">
-      <div class="bg-white/90 text-torii text-xs font-bold py-2 px-4 rounded-full inline-block shadow-md backdrop-blur-md">
-        ⏳ 距離出發還有 <span id="splash-countdown">--</span> 天
+      <div id="splash-countdown-box" class="w-full bg-white/90 text-torii text-xs font-bold py-2 px-4 rounded-full shadow-md backdrop-blur-md flex items-center justify-center">
+        ⏳ 距離出發還有 <span id="splash-countdown" class="mx-1">--</span> 天
       </div>
       <button onclick="startApp()" class="w-full bg-white/95 hover:bg-white text-wood font-bold py-3.5 px-8 rounded-full shadow-glow border border-white text-sm tracking-widest btn-press flex items-center justify-center gap-2 mx-auto backdrop-blur-md">
         <span>開始旅程</span><i class="fa-solid fa-arrow-right text-xs text-torii"></i>
@@ -888,14 +888,21 @@
     }
 
     function updateCountdown() {
-      const target = new Date('2026-10-25T00:00:00');
-      const diff = target - new Date();
+      const target = new Date(2026, 9, 25); // 2026/10/25，本機日期
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const box = document.getElementById('splash-countdown-box');
       const splashEl = document.getElementById('splash-countdown');
-      if (diff > 0) {
-        splashEl.innerText = Math.floor(diff / (1000 * 60 * 60 * 24));
-      } else {
-        splashEl.innerText = '0 (旅途中)';
+
+      // 從旅程當天起不再顯示倒數框
+      if (today >= target) {
+        if (box) box.classList.add('hidden');
+        return;
       }
+
+      const diffDays = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+      if (box) box.classList.remove('hidden');
+      if (splashEl) splashEl.innerText = diffDays;
     }
     updateCountdown();
 
