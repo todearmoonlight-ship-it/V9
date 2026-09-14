@@ -155,20 +155,40 @@
     #total-jpy, #rate-display { font-size:12px !important; }
 
 
-    /* === 2026-09-15 行動版可讀性與固定分類列 === */
+    /* === v14.1：手機固定次選單 === */
+    :root{ --app-header-height:68px; }
+
+    .sticky-subnav{
+      position:-webkit-sticky;
+      position:sticky;
+      top:var(--app-header-height,68px);
+      z-index:29;
+      margin-left:-16px;
+      margin-right:-16px;
+      padding-left:16px;
+      padding-right:16px;
+      background:rgba(253,251,247,.98);
+      -webkit-backdrop-filter:blur(12px);
+      backdrop-filter:blur(12px);
+      box-shadow:0 5px 12px rgba(74,62,61,.06);
+      isolation:isolate;
+    }
+
+    .sticky-datebar{padding-top:6px;padding-bottom:6px;}
+    .sticky-shopbar{padding-top:8px;padding-bottom:8px;}
+    .sticky-planbar{padding-top:7px;padding-bottom:7px;}
+
+    /* 橫向滑動留給內層，sticky 外層本身不設定 overflow */
     #date-picker,
     #shop-category-tabs,
     #plan-icon-nav{
-      position: sticky;
-      top: 68px;
-      z-index: 28;
-      background: rgba(253,251,247,.97);
-      -webkit-backdrop-filter: blur(12px);
-      backdrop-filter: blur(12px);
+      position:relative;
+      top:auto;
+      z-index:auto;
+      margin:0;
+      padding-left:0;
+      padding-right:0;
     }
-    #date-picker{padding-top:7px;padding-bottom:7px;margin-left:-4px;margin-right:-4px;padding-left:4px;padding-right:4px;}
-    #shop-category-tabs{padding:8px 4px;margin-left:-4px;margin-right:-4px;}
-    #plan-icon-nav{padding-top:8px;padding-bottom:8px;}
 
     .shop-tab.active,
     .plan-icon-btn.active{
@@ -255,7 +275,7 @@
     html{
       width:100%;
       max-width:100%;
-      overflow-x:hidden;
+      overflow-x:clip;
       touch-action:manipulation;
       -webkit-text-size-adjust:100%;
       text-size-adjust:100%;
@@ -263,7 +283,7 @@
     body{
       width:100%;
       max-width:448px;
-      overflow-x:hidden;
+      overflow-x:clip;
       touch-action:manipulation;
     }
     button,a,label,.btn-press,.shop-card-head,.draggable-card{
@@ -310,7 +330,7 @@
   </div>
 
   <!-- ================= 2. 頂部 Header ================= -->
-  <header class="p-4 sticky top-0 z-30 bg-[#FDFBF7]/90 backdrop-blur-md border-b border-sand">
+  <header id="app-header" class="p-4 sticky top-0 z-30 bg-[#FDFBF7]/90 backdrop-blur-md border-b border-sand">
     <div class="flex justify-between items-center">
       <div class="flex items-center gap-2">
         <span class="text-2xl">🍁</span>
@@ -443,7 +463,9 @@
 
     <!-- 2. 行程 (Schedule) -->
     <section id="page-schedule" class="page-content space-y-4">
-      <div class="flex gap-2 overflow-x-auto no-scrollbar py-1" id="date-picker"></div>
+      <div class="sticky-subnav sticky-datebar">
+        <div class="flex gap-2 overflow-x-auto no-scrollbar py-1" id="date-picker"></div>
+      </div>
       <div id="group-picker" class="hidden grid grid-cols-2 gap-2"></div>
       <div class="text-[10px] text-gray-400 text-center">💡 長按行程可重設時間，灰色為已安排，碰左右框切換日期。</div>
       <div class="relative timeline-line space-y-4 pt-1" id="timeline-container"></div>
@@ -531,13 +553,15 @@
 
     <!-- 4. 必買推薦 -->
     <section id="page-shopping" class="page-content space-y-4">
-      <div class="flex gap-2 overflow-x-auto no-scrollbar" id="shop-category-tabs">
+      <div class="sticky-subnav sticky-shopbar">
+        <div class="flex gap-2 overflow-x-auto no-scrollbar" id="shop-category-tabs">
         <button onclick="filterShopTab('藥品')" data-shop-tab="藥品" title="藥品" aria-label="藥品" class="shop-tab active w-10 h-10 shrink-0 rounded-xl text-sm bg-skyBlue text-white border border-skyBlue btn-press"><i class="fa-solid fa-pills"></i></button>
         <button onclick="filterShopTab('伴手禮')" data-shop-tab="伴手禮" title="伴手禮" aria-label="伴手禮" class="shop-tab w-10 h-10 shrink-0 rounded-xl text-sm bg-card text-wood border border-sand btn-press"><i class="fa-solid fa-gift"></i></button>
         <button onclick="filterShopTab('美食')" data-shop-tab="美食" title="美食" aria-label="美食" class="shop-tab w-10 h-10 shrink-0 rounded-xl text-sm bg-card text-wood border border-sand btn-press"><i class="fa-solid fa-utensils"></i></button>
         <button onclick="filterShopTab('超商')" data-shop-tab="超商" title="超商" aria-label="超商" class="shop-tab w-10 h-10 shrink-0 rounded-xl text-sm bg-card text-wood border border-sand btn-press"><i class="fa-solid fa-store"></i></button>
         <button onclick="filterShopTab('其他')" data-shop-tab="其他" title="其他" aria-label="其他" class="shop-tab w-10 h-10 shrink-0 rounded-xl text-sm bg-card text-wood border border-sand btn-press"><i class="fa-solid fa-bag-shopping"></i></button>
         <button onclick="filterShopTab('購物清單')" data-shop-tab="購物清單" title="購物清單" aria-label="購物清單" class="shop-tab w-10 h-10 shrink-0 rounded-xl text-sm bg-card text-wood border border-sand btn-press"><i class="fa-solid fa-cart-shopping"></i></button>
+      </div>
       </div>
 
       <div id="shop-content-area" class="space-y-3"></div>
@@ -557,7 +581,8 @@
 
     <!-- 6. 準備 -->
     <section id="page-planning" class="page-content space-y-4">
-      <div class="flex justify-between items-center bg-card p-2 rounded-2xl border border-sand shadow-soft overflow-x-auto no-scrollbar gap-1" id="plan-icon-nav">
+      <div class="sticky-subnav sticky-planbar">
+        <div class="flex justify-between items-center bg-card p-2 rounded-2xl border border-sand shadow-soft overflow-x-auto no-scrollbar gap-1" id="plan-icon-nav">
         <button onclick="switchPlanCategory('必備')" data-plan-cat="必備" class="plan-icon-btn active flex flex-col items-center p-2 rounded-xl text-skyBlue btn-press min-w-[55px]">
           <i class="fa-solid fa-passport text-base mb-1"></i>
           <span class="text-[10px] font-bold">必備</span>
@@ -582,6 +607,7 @@
           <i class="fa-solid fa-ellipsis text-base mb-1"></i>
           <span class="text-[10px] font-bold">其他</span>
         </button>
+      </div>
       </div>
 
       <div class="bg-card rounded-2xl p-4 shadow-soft border border-sand space-y-3">
@@ -875,6 +901,20 @@
     }
 
 
+
+    function syncStickyHeaderHeight(){
+      const header=document.getElementById('app-header');
+      if(!header)return;
+      const h=Math.ceil(header.getBoundingClientRect().height);
+      document.documentElement.style.setProperty('--app-header-height',h+'px');
+    }
+    window.addEventListener('load',syncStickyHeaderHeight);
+    window.addEventListener('resize',syncStickyHeaderHeight);
+    window.addEventListener('orientationchange',()=>setTimeout(syncStickyHeaderHeight,150));
+    if(window.visualViewport){
+      window.visualViewport.addEventListener('resize',()=>requestAnimationFrame(syncStickyHeaderHeight));
+    }
+
     let activeTab = 'bookings';
     let currentExchangeRate = 0.22;
 
@@ -908,6 +948,7 @@
 
     function switchTab(tabName) {
       activeTab = tabName;
+      requestAnimationFrame(syncStickyHeaderHeight);
       if(tabName==='expense') setTimeout(()=>warmReceiptOCR(),120);
       document.querySelectorAll('.page-content').forEach(el => el.classList.remove('active'));
       document.getElementById(`page-${tabName}`).classList.add('active');
