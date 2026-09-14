@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
   <title>東京自由行 2026 手帳</title>
+  <!-- PWA / Add to Home Screen -->
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icon-192.png">
   <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
@@ -13,9 +14,13 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="東京之旅">
   <meta name="mobile-web-app-capable" content="yes">
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts: Zen Maru Gothic & Caveat -->
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- OCR Engine for Receipt Scanning -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
   <script>
@@ -23,15 +28,15 @@
       theme: {
         extend: {
           colors: {
-            paper: '#FDFBF7',
-            card: '#FFFFFF',
-            skyBlue: '#38A1DB',
-            skyLight: '#E8F5FC',
-            sakura: '#FFB7C5',
-            sakuraLight: '#FFF0F3',
-            torii: '#E05244',
-            wood: '#4A3E3D',
-            sand: '#EADBCE',
+            paper: '#FDFBF7',     // 米白手帳紙感
+            card: '#FFFFFF',      // 卡片純白
+            skyBlue: '#38A1DB',   // 富士晴空藍 (主調)
+            skyLight: '#E8F5FC',  // 淺藍貼紙底色
+            sakura: '#FFB7C5',    // 櫻花粉
+            sakuraLight: '#FFF0F3', // 淺櫻粉背景
+            torii: '#E05244',     // 五重塔朱紅 (強調)
+            wood: '#4A3E3D',      // 溫和深褐字體
+            sand: '#EADBCE',      // 手帳線條邊框
             tagSpot: '#EBF6EC',
             tagFood: '#FFF0F3',
             tagTrans: '#E8F5FC',
@@ -68,12 +73,14 @@
     .page-content { display: none; }
     .page-content.active { display: block; }
     
+    /* 封面不透明遮蔽APP */
     #splash-screen { 
       transition: opacity 0.5s ease, visibility 0.5s ease;
       background-color: #FDFBF7;
     }
     #splash-screen.hide { opacity: 0; visibility: hidden; pointer-events: none; }
 
+    /* 時間軸貫穿直線 */
     .timeline-line::before {
       content: '';
       position: absolute;
@@ -85,6 +92,7 @@
       z-index: 0;
     }
 
+    /* 拖拽視覺回饋：呈現滿版富士晴空藍 */
     .draggable-card.dragging .card-body {
       background-color: #38A1DB !important;
       color: #FFFFFF !important;
@@ -95,9 +103,11 @@
       color: #FFFFFF !important;
     }
 
+    /* 底部導航選取狀態 */
     .nav-btn { color: #8E8E93; transition: color 0.2s ease, transform 0.2s ease; }
     .nav-btn.active { color: #38A1DB; font-weight: bold; }
 
+    /* 拖曳排程：長按後僅在畫面中央顯示 08:00–22:00 緊湊時間盤 */
     .day-drop-target.drag-over { background:#FFF0F3 !important; color:#E05244 !important; border-color:#FFB7C5 !important; }
     .drag-edge { position:fixed; top:30%; bottom:30%; width:34px; z-index:70; display:none; align-items:center; justify-content:center; color:white; background:rgba(56,161,219,.68); backdrop-filter:blur(4px); }
     .drag-edge.show { display:flex; }
@@ -122,6 +132,7 @@
     .budget-track { height:10px; background:rgba(255,255,255,.25); border-radius:999px; overflow:hidden; }
     .budget-fill { height:100%; background:white; border-radius:999px; transition:width .25s ease; }
 
+    /* 全站文字放大 2px；指定數字/航站代碼維持原尺寸 */
     body { font-size:18px; }
     .text-\[8px\] { font-size:10px !important; }
     .text-\[9px\] { font-size:11px !important; }
@@ -144,6 +155,7 @@
     #total-jpy, #rate-display { font-size:12px !important; }
 
 
+    /* === 2026-09-15 行動版可讀性與固定分類列 === */
     #date-picker,
     #shop-category-tabs,
     #plan-icon-nav{
@@ -166,6 +178,7 @@
       font-weight:700;
     }
 
+    /* 文字放大，但 Font Awesome icon 維持原 Tailwind 尺寸 */
     i.text-xs{font-size:.75rem !important;line-height:1rem !important;}
     i.text-sm{font-size:.875rem !important;line-height:1.25rem !important;}
     i.text-base{font-size:1rem !important;line-height:1.5rem !important;}
@@ -174,9 +187,11 @@
     i.text-2xl{font-size:1.5rem !important;line-height:2rem !important;}
     .header-icon-btn i{font-size:1rem !important;}
 
+    /* 圖片載入失敗時不要留下破圖 icon */
     .schedule-photo-failed{display:none !important;}
 
   
+    /* === v10：手機 Modal 可捲動修正 === */
     #coupon-modal,
     #global-modal{
       overflow-y:auto;
@@ -227,6 +242,7 @@
       padding-bottom:8px;
     }
 
+    /* 被鍵盤壓縮時仍可捲到最下方按鈕 */
     @supports (height: 100dvh){
       #coupon-modal > div,
       #global-modal > div{
@@ -235,6 +251,7 @@
     }
 
   
+    /* === v12：固定手機視窗與觸控 === */
     html{
       width:100%;
       max-width:100%;
@@ -254,7 +271,7 @@
     }
     @media (max-width: 480px){
       input,select,textarea{
-        font-size:16px !important; 
+        font-size:16px !important; /* 避免 iPhone 聚焦輸入框時自動放大 */
       }
     }
     #bottom-nav{
@@ -280,25 +297,19 @@
 </head>
 <body class="pb-24 max-w-md mx-auto relative min-h-screen border-x border-sand/60 shadow-2xl">
 
-<div id="splash-screen" class="fixed inset-0 z-50 max-w-md mx-auto bg-cover bg-center flex flex-col justify-between p-6 text-white text-center shadow-2xl" style="background-image: url('./cover.jpg');">
-  
-  <div class="mt-auto pb-10 space-y-3 w-full max-w-xs mx-auto">
-    
-<!-- 1. 出發倒數標籤 (極淺櫻花粉底色 + 鮮明紅字) -->
-<div class="w-full bg-[#FFF0F3] text-[#E05244] text-xs font-bold py-2.5 px-4 rounded-full shadow-lg backdrop-blur-md flex items-center justify-center gap-1.5 border border-white/60">
-  <span>⏳ 距離出發還有</span>
-  <span id="splash-countdown" class="text-sm font-extrabold text-[#D93829]">--</span>
-  <span>天</span>
-</div>
-
-    <button onclick="startApp()" class="w-full bg-white/95 hover:bg-white text-gray-800 font-bold py-3.5 px-6 rounded-full shadow-xl border border-white text-sm tracking-widest transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 backdrop-blur-md">
-      <span>開始旅程</span>
-      <i class="fa-solid fa-arrow-right text-xs text-red-600"></i>
-    </button>
-
+  <!-- ================= 1. 封面頁 (SPLASH SCREEN) ================= -->
+  <div id="splash-screen" class="fixed inset-0 z-50 max-w-md mx-auto bg-cover bg-center flex flex-col justify-between p-6 text-white text-center shadow-2xl" style="background-image: url('./cover.jpg');">
+    <div class="mt-auto pb-8 space-y-3 w-full">
+      <div id="splash-countdown-box" class="w-full bg-white/90 text-torii text-xs font-bold py-2 px-4 rounded-full shadow-md backdrop-blur-md flex items-center justify-center">
+        ⏳ 距離出發還有 <span id="splash-countdown" class="mx-1">--</span> 天
+      </div>
+      <button onclick="startApp()" class="w-full bg-white/95 hover:bg-white text-wood font-bold py-3.5 px-8 rounded-full shadow-glow border border-white text-sm tracking-widest btn-press flex items-center justify-center gap-2 mx-auto backdrop-blur-md">
+        <span>開始旅程</span><i class="fa-solid fa-arrow-right text-xs text-torii"></i>
+      </button>
+    </div>
   </div>
-</div>
 
+  <!-- ================= 2. 頂部 Header ================= -->
   <header class="p-4 sticky top-0 z-30 bg-[#FDFBF7]/90 backdrop-blur-md border-b border-sand">
     <div class="flex justify-between items-center">
       <div class="flex items-center gap-2">
@@ -313,8 +324,10 @@
     </div>
   </header>
 
+  <!-- ================= 3. 主內容區 ================= -->
   <main class="p-4">
 
+    <!-- 1. 航程住宿 -->
     <section id="page-bookings" class="page-content active space-y-4">
       <div id="bookings-list" class="space-y-4">
 
@@ -332,6 +345,7 @@
           <div id="booking-pdf-list" class="space-y-2 mt-3"></div>
         </div>
 
+        <!-- 去程航班 -->
         <div class="bg-card rounded-2xl p-4 shadow-soft border border-sand relative">
           <div class="flex justify-between items-center border-b border-dashed border-gray-200 pb-2 mb-3">
             <span class="text-xs font-bold text-skyBlue"><i class="fa-solid fa-plane-departure mr-1"></i>中華航空 CI100 (去程)</span>
@@ -361,6 +375,7 @@
           </div>
         </div>
 
+        <!-- 回程航班 -->
         <div class="bg-card rounded-2xl p-4 shadow-soft border border-sand relative">
           <div class="flex justify-between items-center border-b border-dashed border-gray-200 pb-2 mb-3">
             <span class="text-xs font-bold text-skyBlue"><i class="fa-solid fa-plane-arrival mr-1"></i>中華航空 CI101 (回程)</span>
@@ -390,6 +405,7 @@
           </div>
         </div>
 
+        <!-- 住宿 1 -->
         <div class="bg-card rounded-2xl p-4 shadow-soft border border-sand relative">
           <div class="flex items-start gap-3 cursor-pointer" onclick="toggleElement('hotel-note-1')">
             <div class="w-10 h-10 rounded-xl bg-sakuraLight flex items-center justify-center text-torii text-lg flex-shrink-0 mt-1">
@@ -406,6 +422,7 @@
           </div>
         </div>
 
+        <!-- 住宿 2 -->
         <div class="bg-card rounded-2xl p-4 shadow-soft border border-sand relative">
           <div class="flex items-start gap-3 cursor-pointer" onclick="toggleElement('hotel-note-2')">
             <div class="w-10 h-10 rounded-xl bg-sakuraLight flex items-center justify-center text-torii text-lg flex-shrink-0 mt-1">
@@ -424,6 +441,7 @@
       </div>
     </section>
 
+    <!-- 2. 行程 (Schedule) -->
     <section id="page-schedule" class="page-content space-y-4">
       <div class="flex gap-2 overflow-x-auto no-scrollbar py-1" id="date-picker"></div>
       <div id="group-picker" class="hidden grid grid-cols-2 gap-2"></div>
@@ -437,6 +455,7 @@
       <div id="drag-edge-right" class="drag-edge"><i class="fa-solid fa-chevron-right"></i></div>
     </section>
 
+    <!-- 3. 記帳 (Expense) -->
     <section id="page-expense" class="page-content space-y-4">
       <div class="bg-gradient-to-r from-[#70B153] to-[#4C9675] text-white rounded-2xl p-4 shadow-soft border border-white/30">
         <div class="flex justify-between items-end gap-3 mb-2">
@@ -459,6 +478,7 @@
           <span>日幣總額: ¥<span id="total-jpy">0</span></span>
         </div>
 
+        <!-- 總計角落純 Icon 分類選單 ($ / 🍴 / 🚃 / 🛍️ / 🎟️ / 🎁 / 🪙) -->
         <div class="flex gap-1.5 mt-3 pt-2 border-t border-white/20 overflow-x-auto no-scrollbar text-xs">
           <button onclick="filterExpenseCategory('全部')" data-expense-cat="全部" title="全部" class="expense-filter-btn active px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/40 font-bold btn-press">
             <i class="fa-solid fa-dollar-sign"></i>
@@ -484,6 +504,7 @@
         </div>
       </div>
 
+      <!-- OCR 文字掃描記帳 -->
       <div class="bg-card rounded-2xl p-4 shadow-soft border border-sand space-y-2">
         <div class="flex justify-between items-center">
           <span class="font-bold text-wood text-xs"><i class="fa-solid fa-camera text-torii mr-1.5"></i>拍照發票自動解析記帳</span>
@@ -508,6 +529,7 @@
       </div>
     </section>
 
+    <!-- 4. 必買推薦 -->
     <section id="page-shopping" class="page-content space-y-4">
       <div class="flex gap-2 overflow-x-auto no-scrollbar" id="shop-category-tabs">
         <button onclick="filterShopTab('藥品')" data-shop-tab="藥品" title="藥品" aria-label="藥品" class="shop-tab active w-10 h-10 shrink-0 rounded-xl text-sm bg-skyBlue text-white border border-skyBlue btn-press"><i class="fa-solid fa-pills"></i></button>
@@ -521,6 +543,7 @@
       <div id="shop-content-area" class="space-y-3"></div>
     </section>
 
+    <!-- 5. 日誌隨手記 -->
     <section id="page-journal" class="page-content space-y-4">
       <div class="flex items-center justify-between">
         <h3 class="font-bold text-wood text-sm"><i class="fa-solid fa-book-open text-torii mr-2"></i>旅行故事日誌</h3>
@@ -532,6 +555,7 @@
       </div>
     </section>
 
+    <!-- 6. 準備 -->
     <section id="page-planning" class="page-content space-y-4">
       <div class="flex justify-between items-center bg-card p-2 rounded-2xl border border-sand shadow-soft overflow-x-auto no-scrollbar gap-1" id="plan-icon-nav">
         <button onclick="switchPlanCategory('必備')" data-plan-cat="必備" class="plan-icon-btn active flex flex-col items-center p-2 rounded-xl text-skyBlue btn-press min-w-[55px]">
@@ -569,6 +593,7 @@
       </div>
     </section>
 
+    <!-- 7. 旅行工具 -->
     <section id="page-tools" class="page-content space-y-4">
       <div class="flex items-center gap-2 mb-1">
         <span class="w-1.5 h-4 bg-torii rounded-full"></span>
@@ -653,10 +678,12 @@
 
   </main>
 
+  <!-- ================= 4. 通用 (+) 浮動按鈕 ================= -->
   <button onclick="openGlobalAddModal()" class="fixed bottom-20 right-5 z-40 w-12 h-12 rounded-full bg-skyBlue text-white shadow-lg flex items-center justify-center text-xl font-bold btn-press border-2 border-white">
     <i class="fa-solid fa-plus"></i>
   </button>
 
+  <!-- 旅遊地圖總覽 -->
   <div id="trip-map-modal" class="fixed inset-0 z-[75] bg-black/45 backdrop-blur-sm hidden flex items-end justify-center p-4">
     <div class="bg-card w-full max-w-md rounded-3xl p-5 shadow-2xl border border-sand space-y-3">
       <div class="flex justify-between items-center border-b pb-2"><h3 class="font-bold text-wood text-sm"><i class="fa-solid fa-earth-asia text-skyBlue mr-2"></i>旅遊景點 Google Maps</h3><button onclick="closeTripMapModal()" class="text-gray-400 text-lg"><i class="fa-solid fa-xmark"></i></button></div>
@@ -665,6 +692,7 @@
     </div>
   </div>
 
+  <!-- 優惠券 -->
   <div id="coupon-modal" class="fixed inset-0 z-[75] bg-black/45 backdrop-blur-sm hidden flex items-end justify-center p-4">
     <div class="bg-card w-full max-w-md rounded-3xl p-5 shadow-2xl border border-sand space-y-3">
       <div class="flex justify-between items-center border-b pb-2"><h3 class="font-bold text-wood text-sm"><i class="fa-solid fa-ticket text-torii mr-2"></i>藥妝・商店優惠券</h3><button onclick="closeCouponModal()" class="text-gray-400 text-lg"><i class="fa-solid fa-xmark"></i></button></div>
@@ -673,6 +701,7 @@
     </div>
   </div>
 
+  <!-- 備選景點 -->
   <div id="candidate-modal" class="fixed inset-0 z-[80] bg-black/45 backdrop-blur-sm hidden flex items-end justify-center p-3">
     <div class="bg-card w-full max-w-md rounded-3xl p-4 shadow-2xl border border-sand">
       <div class="flex justify-between items-center border-b pb-2 mb-2"><div><h3 class="font-bold text-wood text-sm">備選景點</h3><div class="text-[9px] text-gray-400">已排入行程的景點會自動隱藏</div></div><button onclick="closeCandidateModal()" class="text-gray-400 text-lg"><i class="fa-solid fa-xmark"></i></button></div>
@@ -690,6 +719,7 @@
     </div>
   </div>
 
+  <!-- ================= 5. 底部導航列 ================= -->
   <nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-card/95 backdrop-blur-md border-t border-sand px-2 py-2 flex items-center gap-1 overflow-x-auto no-scrollbar z-40 shadow-lg">
     <button onclick="switchTab('bookings')" class="nav-btn active flex flex-col items-center gap-1 py-1 btn-press shrink-0" data-tab="bookings">
       <i class="fa-solid fa-plane text-base"></i>
@@ -721,8 +751,10 @@
     </button>
   </nav>
 
+  <!-- ================= 6. JavaScript 邏輯引擎 ================= -->
   <script>
 
+    // ===== v12 使用者媒體資料庫：照片不再塞入 localStorage =====
     const MEDIA_DB='tokyo-media-v1';
     const MEDIA_STORE='media';
     const MEDIA_PREFIX='idbmedia:';
@@ -856,12 +888,13 @@
     }
 
     function updateCountdown() {
-      const target = new Date(2026, 9, 25);
+      const target = new Date(2026, 9, 25); // 2026/10/25，本機日期
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const box = document.getElementById('splash-countdown-box');
       const splashEl = document.getElementById('splash-countdown');
 
+      // 從旅程當天起不再顯示倒數框
       if (today >= target) {
         if (box) box.classList.add('hidden');
         return;
@@ -889,6 +922,7 @@
       });
     }
 
+    // ---------------- 行程：完整行程、A/B 組、拖曳時間與跨日 ----------------
     const fullTimeSlots = Array.from({length:15}, (_,i)=>String(i+8).padStart(2,'0')+':00');
     let currentDayIndex = 0;
     let currentGroup = '';
@@ -919,7 +953,7 @@
         });
         const order=new Map(seedDaysData.map((d,i)=>[d.date,i]));
         current.sort((a,b)=>(order.get(a.date)??999)-(order.get(b.date)??999));
-        try{localStorage.setItem('tokyo-days-v2',JSON.stringify(current));}catch(_){}
+        try{localStorage.setItem('tokyo-days-v2',JSON.stringify(current));}catch(_){/* 媒體遷移完成後會釋放 localStorage */}
         return current;
       }catch(e){return JSON.parse(JSON.stringify(seedDaysData));}
     }
@@ -1058,6 +1092,7 @@
     function dropDraggedAt(time,dayIdx){
       if(!dragState)return; const src=daysData[dragState.fromDay].items; const pos=src.findIndex(x=>x.id===dragState.itemId); if(pos<0)return finishDrag();
       const [item]=src.splice(pos,1); item.time=time;
+      // 跨到有 A/B 組的日期時，保留原分組；跨到無分組日期則清除分組
       const targetGroups=[...new Set(daysData[dayIdx].items.map(x=>x.group).filter(Boolean))]; if(!targetGroups.length)item.group='';
       daysData[dayIdx].items.push(item); daysData[dayIdx].items.sort((a,b)=>a.time.localeCompare(b.time)); saveDays(); currentDayIndex=dayIdx; finishDrag();
     }
@@ -1154,6 +1189,7 @@
       currentDayIndex=found.dayIndex; renderTimeline(found.dayIndex); closeGlobalModal();
     }
 
+    // ---------------- 記帳：照片保存、點擊展開、可編輯 OCR 金額 ----------------
     let expenses = (()=>{try{const s=localStorage.getItem('tokyo-expenses-v2');return s?JSON.parse(s):[
       { id:1,note:'一蘭拉麵',amount:1980,currency:'JPY',category:'餐飲',payMethod:'現金',time:'2026/10/25 18:30',receiptImage:'' },
       { id:2,note:'Suica 加值',amount:3000,currency:'JPY',category:'交通',payMethod:'交通卡',time:'2026/10/25 13:30',receiptImage:'' }
@@ -1283,6 +1319,7 @@
       });
     }
 
+    // ===== 日本發票快速 OCR v2：免費、純前端、重複使用 Worker =====
     let receiptOCRWorkerPromise=null;
     let receiptOCRReady=false;
 
@@ -1292,6 +1329,7 @@
         const worker=await Tesseract.createWorker();
         await worker.loadLanguage('eng');
         await worker.initialize('eng');
+        // 只辨識金額所需字元可顯著降低運算量；保留換行以利候選值排序。
         await worker.setParameters({
           tessedit_pageseg_mode:'6',
           tessedit_char_whitelist:'0123456789,.-¥￥'
@@ -1332,6 +1370,7 @@
     async function prepareReceiptOCRImage(file){
       const im=await loadImageFile(file);
 
+      // 控制 OCR 像素量：手機 12MP/48MP 原圖不直接丟進 OCR。
       const maxW=1100,maxH=1800;
       const scale=Math.min(1,maxW/im.width,maxH/im.height);
       const w=Math.max(1,Math.round(im.width*scale));
@@ -1341,6 +1380,7 @@
       const ctx=c.getContext('2d',{willReadFrequently:true});
       ctx.drawImage(im,0,0,w,h);
 
+      // 灰階 + 溫和提升對比，改善熱感應收據淡字，不做重度二值化以免吃掉細字。
       const img=ctx.getImageData(0,0,w,h);
       const d=img.data;
       for(let i=0;i<d.length;i+=4){
@@ -1358,6 +1398,7 @@
     function normalizeOCRNumber(raw){
       const s=String(raw||'').replace(/[^\d.,]/g,'');
       if(!s)return 0;
+      // 日幣通常無小數，OCR 的句點多半是誤辨識；逗號/句點一律當千位符號移除。
       const n=parseInt(s.replace(/[.,]/g,''),10);
       return Number.isFinite(n)?n:0;
     }
@@ -1373,6 +1414,7 @@
           const value=normalizeOCRNumber(raw);
           if(value<10 || value>500000)return;
 
+          // 排除常見日期／年份／電話型態
           if(value>=1900 && value<=2099 && /^\D*20\d{2}\D*$/.test(line))return;
           if(/\d{2,4}[\/\-]\d{1,2}[\/\-]\d{1,2}/.test(line) && value>=1000 && value<=2099)return;
           if(/\d{2}:\d{2}/.test(line) && value<=2359)return;
@@ -1381,9 +1423,11 @@
           let score=0;
           if(/[¥￥]/.test(raw))score+=5;
           if(/[,.]\d{3}/.test(raw))score+=3;
+          // 總額通常位於收據中後段
           const pos=(lineIndex+1)/Math.max(lines.length,1);
           if(pos>.55)score+=3;
           else if(pos>.35)score+=1;
+          // 太整齊的 5,000/10,000 常是「預收現金」，略降權重
           if(value>=5000 && value%1000===0)score-=1.5;
           if(value>=100 && value<=100000)score+=1;
 
@@ -1395,6 +1439,7 @@
         });
       });
 
+      // 同一金額在收據重複出現，通常比只出現一次更可信。
       bucket.forEach(x=>{ if(x.count>1)x.score+=Math.min(4,(x.count-1)*1.5); });
       return [...bucket.values()]
         .sort((a,b)=>b.score-a.score || b.count-a.count || b.value-a.value)
@@ -1481,6 +1526,7 @@
       try{receiptImage=await compressReceipt(file,900,.68);}catch(e){}
 
       try{
+        // OCR 用縮小、灰階、增強對比的圖片，不直接處理手機原始大圖。
         const ocrImage=await prepareReceiptOCRImage(file);
         const worker=await getReceiptOCRWorker();
         const ret=await worker.recognize(ocrImage);
@@ -1501,14 +1547,17 @@
       }
     }
 
+    // ---------------- 必買推薦：藥品／伴手禮／美食／超商 ----------------
     let activeShopTab = '藥品';
     const shopSeedData = {"藥品":[{"name":"合利他命 EX PLUS","note":"維生素B群，常見於眼睛疲勞、肩頸僵硬與腰部不適需求。","image":"./images/shop/default_01.webp","location":"","wiki":"合利他命"},{"name":"EVE QUICK 頭痛藥 DX","note":"日本常見止痛藥，頭痛、經痛等；使用前確認成分與禁忌。","image":"","location":"","wiki":"EVE"},{"name":"大正百保能","note":"日本常見綜合感冒藥，需留意與其他感冒／止痛藥成分重複。","image":"./images/shop/default_02.webp","location":"","wiki":"大正百保能"},{"name":"CABAGIN KOWA α PLUS","note":"常見胃腸藥，適合胃脹、消化不良等胃部不適需求。","image":"","location":"","wiki":"CABAGIN"},{"name":"太田胃散","note":"日本經典胃腸藥，吃太多、胃脹及消化不良時常見。","image":"./images/shop/default_03.webp","location":"","wiki":"太田胃散"},{"name":"Sante FX V Plus","note":"清涼型眼藥水，主要針對眼睛疲勞；注意隱形眼鏡使用限制。","image":"","location":"","wiki":"Sante"},{"name":"ROHTO Z!","note":"樂敦清涼型眼藥水，眼睛疲勞、充血等；確認隱形眼鏡限制。","image":"./images/shop/default_04.webp","location":"","wiki":"ROHTO"},{"name":"MUHI BABY 寶寶止癢液／軟膏","note":"寶寶／兒童常見蚊蟲叮咬止癢用品，依產品標示年齡使用。","image":"./images/shop/05_MUHI_BABY.webp","location":"","wiki":"MUHI"},{"name":"護那酷止癢藥水","note":"蚊蟲叮咬止癢液，塗抹後具有明顯清涼感。","image":"./images/shop/default_05.webp","location":"","wiki":"護那酷"},{"name":"ROHTO 樂敦 GOLD 40","note":"常見眼藥水系列，主要用於眼睛疲勞等不適。","image":"./images/shop/default_06.webp","location":"","wiki":"ROHTO"},{"name":"龍角散 Direct","note":"日本經典喉嚨用藥，可依需求選擇顆粒、粉末等產品。","image":"./images/shop/default_07.webp","location":"","wiki":"龍角散"},{"name":"Chocola BB Plus","note":"日本常見維生素B群產品，以維生素B2系列最具代表性。","image":"","location":"","wiki":"Chocola"},{"name":"Sante Beautéye 小花眼藥水","note":"外觀辨識度高的參天眼藥水，購買時確認實際版本與用途。","image":"./images/shop/default_08.webp","location":"","wiki":"Sante"},{"name":"大正製藥 Quick Care 口內炎藥膏","note":"口腔潰瘍／口內炎外用藥，直接使用於患部。","image":"./images/shop/default_09.webp","location":"","wiki":"大正製藥"},{"name":"Salonpas 撒隆巴斯酸痛貼布","note":"肩頸、腰部及肌肉痠痛常見外用貼布。","image":"./images/shop/default_10.webp","location":"","wiki":"Salonpas"},{"name":"Vantelin 專業級貼布","note":"肌肉與關節痠痛常見外用貼布，使用前請依產品標示確認適用方式。","image":"./images/shop/default_11.webp","location":"","wiki":"Vantelin"}],"伴手禮":[{"name":"東京 Banana","note":"東京代表性香蕉卡士達蛋糕，包裝與限定聯名款辨識度高。","image":"./images/shop/default_12.webp","location":"","wiki":"東京"},{"name":"New York Perfect Cheese","note":"起司奶油與巧克力搭配薄脆餅乾，東京熱門排隊伴手禮。","image":"","location":"","wiki":"New"},{"name":"N.Y.C. SAND","note":"焦糖與巧克力夾心餅乾，濃郁且適合送禮。","image":"","location":"","wiki":"N.Y.C."},{"name":"PRESS BUTTER SAND","note":"酥脆餅乾夾奶油霜與焦糖內餡，東京車站常見。","image":"","location":"","wiki":"PRESS"},{"name":"Sugar Butter Tree 砂糖奶油樹","note":"穀物餅乾夾白巧克力，獨立包裝適合分送。","image":"","location":"","wiki":"Sugar"},{"name":"The Maple Mania 楓糖男孩","note":"楓糖奶油香濃，復古包裝且很有秋季東京氣氛。","image":"","location":"","wiki":"The"},{"name":"鬱金香餅乾","note":"花朵造型餅乾與巧克力奶油，外觀精緻適合送禮。","image":"./images/shop/default_13.webp","location":"","wiki":"鬱金香餅乾"},{"name":"資生堂 Parlour 花椿餅乾","note":"銀座經典老牌甜點，花椿鐵盒很有收藏感。","image":"./images/shop/default_14.webp","location":"","wiki":"資生堂"},{"name":"NUMBER SUGAR 手工牛奶糖","note":"表參道人氣手工牛奶糖，不同編號代表不同口味。","image":"","location":"","wiki":"NUMBER"},{"name":"銀座年輪家","note":"東京知名年輪蛋糕，外層香酥、內裡柔軟。","image":"","location":"","wiki":"銀座年輪家"},{"name":"東京晴空戀巧巧克力","note":"東京晴空塔主題巧克力伴手禮，東京辨識度高。","image":"","location":"","wiki":"東京晴空戀巧巧克力"},{"name":"東京牛奶起司工坊","note":"牛奶與起司風味濃郁，招牌夾心餅乾很受歡迎。","image":"","location":"","wiki":"東京牛奶起司工坊"},{"name":"Y雪茄餅乾","note":"經典奶油雪茄蛋捲，酥脆且包裝精緻。","image":"./images/shop/default_15.webp","location":"","wiki":"YOKU MOKU"},{"name":"ROYCE' 生巧克力","note":"北海道知名巧克力品牌，東京機場與百貨也常見。","image":"./images/shop/default_16.webp","location":"","wiki":"ROYCE'"},{"name":"PISTA & TOKYO","note":"開心果甜點專門品牌，層次濃郁且包裝適合送禮。","image":"","location":"","wiki":"PISTA"}],"美食":[{"name":"淺草炸肉餅（浅草メンチ）","note":"淺草｜黑毛和牛混高座豬，外皮酥脆、肉汁豐富。","image":"","location":"Asakusa Menchi Tokyo","wiki":"淺草炸肉餅"},{"name":"淺草花月堂","note":"淺草｜巨無霸菠蘿麵包，外酥內鬆軟，可搭配冰淇淋。","image":"./images/shop/02_img.webp","location":"Asakusa Kagetsudo","wiki":"淺草花月堂"},{"name":"龜十（亀十）","note":"淺草｜人氣銅鑼燒，餅皮蓬鬆、紅豆與白豆沙細緻。","image":"","location":"Kameju Asakusa","wiki":"龜十"},{"name":"淺草吉備糰子 あづま","note":"淺草｜現裹黃豆粉的小糰子，適合搭冰鎮甘酒。","image":"","location":"Asakusa Kibidango Azuma","wiki":"淺草吉備糰子"},{"name":"淺草うなな Unana","note":"淺草｜炭烤鰻魚飯糰串，飯糰焦香配厚實蒲燒鰻魚。","image":"","location":"Asakusa Unana","wiki":"淺草うなな"},{"name":"壽々喜園 Suzukien","note":"淺草｜抹茶冰淇淋濃度分級，No.7 是招牌挑戰。","image":"","location":"Suzukien Asakusa","wiki":"壽々喜園"},{"name":"肉的大山","note":"上野｜肉舖直營炸物，Menchi-katsu 與和牛可樂餅熱門。","image":"./images/shop/01_img.jpg","location":"Niku no Oyama Ueno","wiki":"肉的大山"},{"name":"みなとや Minatoya","note":"上野｜阿美橫丁海鮮丼與章魚燒人氣店。","image":"","location":"Minatoya Ueno Ameyoko","wiki":"みなとや"},{"name":"みはし上野本店","note":"上野｜老字號日式甜點，白玉餡蜜是代表品項。","image":"./images/shop/12_img.png","location":"Mihashi Ueno","wiki":"みはし上野本店"},{"name":"茶之君野園","note":"上野｜百年茶舖抹茶霜淇淋，抹茶＋牛奶綜合口味平衡。","image":"","location":"Cha no Kiminoen Ueno","wiki":"茶之君野園"},{"name":"築地山長 玉子燒","note":"築地｜高湯玉子燒，適合市場散步時現買現吃。","image":"./images/shop/11_img.jpg","location":"Tsukiji Yamacho","wiki":"築地山長"},{"name":"丸豐飯糰","note":"築地｜大份量飯糰，半熟蛋搭鮭魚或明太子很熱門。","image":"","location":"Marutoyo Tsukiji","wiki":"丸豐飯糰"},{"name":"築地黑銀","note":"築地｜現切黑鮪魚壽司串、生魚片與小丼飯。","image":"","location":"Maguroya Kurogin Tsukiji","wiki":"築地黑銀"},{"name":"人形町志乃多壽司","note":"日本橋｜百年豆皮壽司與干瓢捲老店。","image":"","location":"Ningyocho Shinodazushi","wiki":"人形町志乃多壽司"},{"name":"GARIGUETTE 表參道","note":"表參道｜圓形法式千層酥 Mille-pressé，酥脆現做。","image":"","location":"GARIGUETTE Omotesando","wiki":"GARIGUETTE"},{"name":"Marion Crepes 原宿","note":"原宿｜日本可麗餅老字號，草莓鮮奶油與起司蛋糕口味熱門。","image":"./images/shop/10_marion_crepes.jpg","location":"Marion Crepes Harajuku","wiki":"Marion"},{"name":"LUKE'S LOBSTER 表參道","note":"表參道｜奶油麵包夾滿龍蝦肉，方便邊逛邊吃。","image":"./images/shop/09_luke_s_lobster.webp","location":"Lukes Lobster Omotesando","wiki":"LUKE'S"},{"name":"THE MATCHA TOKYO","note":"原宿｜抹茶專賣店，招牌抹茶拿鐵與有機抹茶甜點。","image":"","location":"The Matcha Tokyo Omotesando","wiki":"THE"},{"name":"Calbee+","note":"原宿／東京站｜現炸洋芋片與薯條，可搭巧克力醬或霜淇淋。","image":"./images/shop/08_calbee.jpg","location":"Calbee Plus Tokyo","wiki":"Calbee+"},{"name":"RINGO 蘋果派","note":"池袋等｜酥皮卡士達蘋果派，外酥內帶大塊蘋果。","image":"./images/shop/07_ringo.jpg","location":"RINGO Apple Pie Ikebukuro","wiki":"RINGO"},{"name":"神田達磨 鯛魚燒","note":"秋葉原／神田｜帶翅鯛魚燒邊緣香脆，紅豆餡甜而不膩。","image":"./images/shop/06_img.jpg","location":"Kanda Daruma Taiyaki","wiki":"神田達磨"},{"name":"銀章魚 Gindaco","note":"澀谷等｜外酥內軟章魚燒，明太子起司口味很受歡迎。","image":"","location":"Gindaco Tokyo","wiki":"銀章魚"}],"超商":[{"name":"Famichiki ファミチキ","note":"FamilyMart｜招牌無骨炸雞，外皮酥脆、雞肉柔嫩多汁。","image":"","location":"FamilyMart","wiki":"Famichiki"},{"name":"Uchi Café Premium Roll Cake","note":"LAWSON｜經典生乳鮮奶油蛋糕捲，口感柔軟滑順。","image":"","location":"Lawson","wiki":"Uchi"},{"name":"Karaage-kun からあげクン","note":"LAWSON｜杯裝炸雞塊代表商品，原味與期間限定口味都熱門。","image":"","location":"Lawson","wiki":"Karaage-kun"},{"name":"LAWSON 蛋沙拉三明治","note":"LAWSON｜日本超商早餐經典，蛋沙拉滑順、方便帶著吃。","image":"./images/shop/04_Lawson.jfif","location":"Lawson","wiki":"LAWSON"},{"name":"鮪魚美乃滋飯糰","note":"7-Eleven／FamilyMart／LAWSON｜日本超商最經典飯糰口味之一。","image":"","location":"日本各大超商","wiki":"鮪魚美乃滋飯糰"},{"name":"7-Premium 金のワッフルコーン","note":"7-Eleven｜高階牛奶香草霜淇淋，脆皮甜筒香氣明顯。","image":"","location":"7-Eleven","wiki":"7-Premium"},{"name":"OHAYO BRULEE MILK","note":"7-Eleven／LAWSON 等｜上層焦糖脆殼搭濃郁牛奶冰淇淋。","image":"./images/shop/03_OHAYO_BRULEE_MILK.jfif","location":"日本超商／超市","wiki":"OHAYO"},{"name":"TOUGH GUMMY／THE STRONG","note":"7-Eleven 等｜高咀嚼感硬式軟糖，葡萄、檸檬等口味常見。","image":"","location":"日本超商／藥妝","wiki":"TOUGH"},{"name":"Chocola BB Light 系列飲料","note":"日本超商／藥妝｜常見維生素機能飲料，與藥品錠劑分開選購。","image":"","location":"日本超商／藥妝","wiki":"Chocola"},{"name":"Uchi Café 泡芙系列","note":"LAWSON｜奶油內餡豐富的冷藏甜點，口味會隨季節更換。","image":"","location":"Lawson","wiki":"Uchi"}],"其他":[{"name":"川崎雙頭畫筆","note":"文具手帳專用","image":"","location":"","wiki":""}],"購物清單":[{"name":"Suica 卡","checked":true,"category":"其他"}]};
     let shopData = (()=>{try{const s=localStorage.getItem('tokyo-shop-v2');return s?JSON.parse(s):JSON.parse(JSON.stringify(shopSeedData));}catch(e){return JSON.parse(JSON.stringify(shopSeedData));}})();
     ['藥品','伴手禮','美食','超商','其他','購物清單'].forEach(k=>{if(!Array.isArray(shopData[k]))shopData[k]=[];});
+    // 2026-09-11 商品資料更新：刪除指定品項、改名並套用上傳圖片
     const removedShopNames=new Set(['LOXONIN S PLUS','BUFFERIN PREMIUM','BUFFERIN PREMIUM DX','安美露 YOKO YOKO','安美露YOYO']);
     shopData['藥品']=shopData['藥品'].filter(x=>!removedShopNames.has(x.name));
     const shopRenameMap={'PABRON GOLD A':'大正百保能','PEBRON':'大正百保能','Una Kowa Cool':'護那酷止癢藥水','UNA KOWA COO':'護那酷止癢藥水','TOKYO TULIP ROSE':'鬱金香餅乾','Tokyo Tulip Rose':'鬱金香餅乾','YOKU MOKU Cigare':'Y雪茄餅乾','YOKU MOKU':'Y雪茄餅乾'};
     ['藥品','伴手禮'].forEach(cat=>shopData[cat].forEach(x=>{if(shopRenameMap[x.name])x.name=shopRenameMap[x.name];}));
+    // 舊版本使用者自動補入新版預設品項，不覆蓋原本資料
     ['藥品','伴手禮','美食','超商','其他'].forEach(cat=>{
       shopSeedData[cat].forEach(seed=>{if(!shopData[cat].some(x=>x.name===seed.name))shopData[cat].push({...seed});});
       shopData[cat].forEach(x=>{if(x.image===undefined)x.image='';if(x.location===undefined)x.location='';if(x.wiki===undefined)x.wiki='';});
@@ -1600,6 +1649,7 @@
     function addToShoppingList(name,category='其他'){shopData['購物清單'].push({name,checked:false,category});saveShop();alert(`已將「${name}」加入購物清單！`);}
     renderShopContent();
 
+    // ---------------- 日誌 (圖片顯示在文字下方) ----------------
     let journals = (()=>{try{const s=localStorage.getItem('tokyo-journals-v2');return s?JSON.parse(s):[{ id: 1, title: '初抵東京淺草夜間散策', date: '2026/10/25 18:30', text: '終於來到東京淺草！夜間雷門點燈後非常古色古香，抹茶冰淇淋極美味！⛩️', img: '' }]}catch(e){return[]}})();
     function saveJournals(){localStorage.setItem('tokyo-journals-v2',JSON.stringify(journals));}
 
@@ -1646,6 +1696,7 @@
             <span class="text-[10px] text-skyBlue font-bold">展開內文 <i class="fa-solid fa-chevron-down text-[8px]"></i></span>
           </div>
 
+          <!-- 先文字故事，後照片 -->
           <div id="journal-body-${item.id}" class="journal-body hidden pt-3 border-t border-dashed space-y-3 text-xs">
             <p class="text-gray-600 leading-relaxed">${item.text}</p>
             ${item.img ? mediaImgTag(item.img,'w-full rounded-xl object-cover max-h-52 border shadow-sm',item.title) : ''}
@@ -1661,6 +1712,7 @@
     }
     renderJournals();
 
+    // ---------------- 準備頁籤 ----------------
     let activePlanCategory = '必備';
     const defaultPlanData={
       '必備':['有效護照','展場入場證','現金與信用卡','網路設備 (SIM卡/WiFi機)'],
@@ -1712,6 +1764,7 @@
     }
     renderPlanChecklist();
 
+    // ---------------- 工具計算器 ----------------
     function calcToolExchange() {
       const jpy = parseFloat(document.getElementById('tool-jpy-input').value) || 0;
       document.getElementById('tool-ntd-result').innerText = `約 NT$${Math.round(jpy * currentExchangeRate).toLocaleString()}`;
@@ -1764,7 +1817,9 @@
     }
 
 
+    // ---------------- 頂部地圖、優惠券、備選景點 ----------------
     
+    // ===== 航程住宿 PDF 憑證（IndexedDB，本裝置保存） =====
     const BOOKING_PDF_DB = 'tokyo-booking-pdfs-v1';
     const BOOKING_PDF_STORE = 'pdfs';
 
@@ -2011,6 +2066,7 @@
       daysData[dayIdx].items.push(item);daysData[dayIdx].items.sort((a,b)=>a.time.localeCompare(b.time));saveDays();renderTimeline(dayIdx);closeGlobalModal();
     }
 
+    // ---------------- Modal 彈出與新增 ----------------
     function openGlobalAddModal() {
       const titleEl = document.getElementById('modal-title');
       const bodyEl = document.getElementById('modal-form-body');
