@@ -190,6 +190,66 @@
     /* 圖片載入失敗時不要留下破圖 icon */
     .schedule-photo-failed{display:none !important;}
 
+  
+    /* === v10：手機 Modal 可捲動修正 === */
+    #coupon-modal,
+    #global-modal{
+      overflow-y:auto;
+      overscroll-behavior:contain;
+      -webkit-overflow-scrolling:touch;
+    }
+
+    #coupon-modal > div{
+      max-height:calc(100dvh - 24px);
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+    #coupon-modal > div > div:first-child,
+    #coupon-modal > div > div:last-child{
+      flex-shrink:0;
+    }
+    #coupon-list{
+      flex:1 1 auto;
+      min-height:0;
+      overflow-y:auto;
+      overscroll-behavior:contain;
+      -webkit-overflow-scrolling:touch;
+      padding-right:2px;
+    }
+
+    #global-modal{
+      align-items:center !important;
+      padding-top:max(12px, env(safe-area-inset-top));
+      padding-bottom:max(12px, env(safe-area-inset-bottom));
+    }
+    #global-modal > div{
+      max-height:calc(100dvh - 24px);
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+    #global-modal > div > div:first-child{
+      flex-shrink:0;
+    }
+    #modal-form-body{
+      flex:1 1 auto;
+      min-height:0;
+      overflow-y:auto;
+      overscroll-behavior:contain;
+      -webkit-overflow-scrolling:touch;
+      padding-right:2px;
+      padding-bottom:8px;
+    }
+
+    /* 被鍵盤壓縮時仍可捲到最下方按鈕 */
+    @supports (height: 100dvh){
+      #coupon-modal > div,
+      #global-modal > div{
+        max-height:calc(100dvh - 24px);
+      }
+    }
+
   </style>
 </head>
 <body class="pb-24 max-w-md mx-auto relative min-h-screen border-x border-sand/60 shadow-2xl">
@@ -1458,8 +1518,9 @@
       document.getElementById('coupon-image-viewer')?.remove();
       const modal=document.createElement('div');
       modal.id='coupon-image-viewer';
-      modal.className='fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-3';
-      modal.innerHTML=`<div class="absolute top-4 left-4 right-4 flex items-center justify-between text-white"><div class="font-bold text-sm truncate pr-3">${name||'優惠券'}</div><button type="button" id="coupon-viewer-close" class="w-10 h-10 rounded-full bg-black/50 text-white text-xl flex items-center justify-center" aria-label="關閉"><i class="fa-solid fa-xmark"></i></button></div><img src="${src}" class="max-w-full max-h-[84vh] object-contain rounded-xl bg-white shadow-2xl" alt="${name||'優惠券'}">`;
+      modal.className='fixed inset-0 z-[100] bg-black/90 overflow-y-auto overscroll-contain p-3 pt-20 pb-8';
+      modal.style.webkitOverflowScrolling='touch';
+      modal.innerHTML=`<div class="fixed top-3 left-3 right-3 z-[101] flex items-center justify-between text-white"><div class="font-bold text-sm truncate pr-3 bg-black/40 rounded-xl px-3 py-2">${name||'優惠券'}</div><button type="button" id="coupon-viewer-close" class="w-10 h-10 shrink-0 rounded-full bg-black/60 text-white text-xl flex items-center justify-center shadow-lg" aria-label="關閉"><i class="fa-solid fa-xmark"></i></button></div><div class="min-h-full flex items-start justify-center"><img src="${src}" class="w-auto max-w-full h-auto object-contain rounded-xl bg-white shadow-2xl" alt="${name||'優惠券'}"></div>`;
       modal.querySelector('#coupon-viewer-close').onclick=()=>modal.remove();
       modal.onclick=e=>{if(e.target===modal)modal.remove()};
       document.body.appendChild(modal);
