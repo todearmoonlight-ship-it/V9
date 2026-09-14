@@ -297,17 +297,27 @@
 </head>
 <body class="pb-24 max-w-md mx-auto relative min-h-screen border-x border-sand/60 shadow-2xl">
 
-  <!-- ================= 1. 封面頁 (SPLASH SCREEN) ================= -->
-  <div id="splash-screen" class="fixed inset-0 z-50 max-w-md mx-auto bg-cover bg-center flex flex-col justify-between p-6 text-white text-center shadow-2xl" style="background-image: url('./cover.jpg');">
-    <div class="mt-auto pb-8 space-y-3 w-full">
-      <div id="splash-countdown-box" class="w-full bg-white/90 text-torii text-xs font-bold py-2 px-4 rounded-full shadow-md backdrop-blur-md flex items-center justify-center">
-        ⏳ 距離出發還有 <span id="splash-countdown" class="mx-1">--</span> 天
-      </div>
-      <button onclick="startApp()" class="w-full bg-white/95 hover:bg-white text-wood font-bold py-3.5 px-8 rounded-full shadow-glow border border-white text-sm tracking-widest btn-press flex items-center justify-center gap-2 mx-auto backdrop-blur-md">
-        <span>開始旅程</span><i class="fa-solid fa-arrow-right text-xs text-torii"></i>
-      </button>
+ <!-- ================= 1. 封面頁 (SPLASH SCREEN) ================= -->
+<div id="splash-screen" class="fixed inset-0 z-50 max-w-md mx-auto bg-cover bg-center flex flex-col justify-between p-6 text-white text-center shadow-2xl" style="background-image: url('./cover.jpg');">
+  
+  <!-- 底部按鈕與標籤區塊 -->
+  <div class="mt-auto pb-10 space-y-3 w-full max-w-xs mx-auto">
+    
+    <!-- 1. 出發倒數標籤 (改為與按鈕同寬、日式朱紅配色) -->
+    <div class="w-full bg-red-500/90 text-white text-xs font-bold py-2.5 px-4 rounded-full shadow-lg backdrop-blur-md flex items-center justify-center gap-1.5 border border-white/20">
+      <span>⏳ 距離出發還有</span>
+      <span id="splash-countdown" class="text-sm font-extrabold text-amber-200">40</span>
+      <span>天</span>
     </div>
+
+    <!-- 2. 開始旅程按鈕 (高對比白色毛玻璃按鈕) -->
+    <button onclick="startApp()" class="w-full bg-white/95 hover:bg-white text-gray-800 font-bold py-3.5 px-6 rounded-full shadow-xl border border-white text-sm tracking-widest transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 backdrop-blur-md">
+      <span>開始旅程</span>
+      <i class="fa-solid fa-arrow-right text-xs text-red-600"></i>
+    </button>
+
   </div>
+</div>
 
   <!-- ================= 2. 頂部 Header ================= -->
   <header class="p-4 sticky top-0 z-30 bg-[#FDFBF7]/90 backdrop-blur-md border-b border-sand">
