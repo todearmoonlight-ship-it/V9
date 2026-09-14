@@ -476,7 +476,7 @@
             <input type="file" accept="image/*" class="hidden" onchange="scanReceiptOCR(this)">
           </label>
         </div>
-        <div id="ocr-status" class="text-[10px] text-gray-400 text-center">可拍照或從圖庫挑選日本發票／收據；辨識後仍可編輯金額。</div>
+        <div id="ocr-status" class="text-[10px] text-gray-400 text-center">快速辨識金額並列出候選值；首次載入 OCR 會較久，之後辨識速度會明顯加快。</div>
       </div>
 
       <div class="bg-card rounded-2xl p-4 shadow-soft border border-sand space-y-2">
@@ -735,6 +735,7 @@
 
     function switchTab(tabName) {
       activeTab = tabName;
+      if(tabName==='expense') setTimeout(()=>warmReceiptOCR(),120);
       document.querySelectorAll('.page-content').forEach(el => el.classList.remove('active'));
       document.getElementById(`page-${tabName}`).classList.add('active');
       
@@ -1097,18 +1098,242 @@
     function deleteExpense(id){if(confirm('確定刪除此筆支出嗎？')){expenses=expenses.filter(e=>e.id!==id);saveExpenses();renderExpenses();}}
     renderExpenses();
 
-    function compressReceipt(file,maxWidth=1000,quality=.72){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const scale=Math.min(1,maxWidth/im.width);const c=document.createElement('canvas');c.width=Math.round(im.width*scale);c.height=Math.round(im.height*scale);c.getContext('2d').drawImage(im,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',quality))};im.src=r.result};r.onerror=reject;r.readAsDataURL(file)})}
+    function compressReceipt(file,maxWidth=1000,quality=.72){
+      return new Promise((resolve,reject)=>{
+        const r=new FileReader();
+        r.onload=()=>{
+          const im=new Image();
+          im.onload=()=>{
+            const scale=Math.min(1,maxWidth/im.width);
+            const c=document.createElement('canvas');
+            c.width=Math.round(im.width*scale);
+            c.height=Math.round(im.height*scale);
+            c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+            resolve(c.toDataURL('image/jpeg',quality));
+          };
+          im.onerror=reject;
+          im.src=r.result;
+        };
+        r.onerror=reject;
+        r.readAsDataURL(file);
+      });
+    }
+
+    // ===== 日本發票快速 OCR v2：免費、純前端、重複使用 Worker =====
+    let receiptOCRWorkerPromise=null;
+    let receiptOCRReady=false;
+
+    async function getReceiptOCRWorker(){
+      if(receiptOCRWorkerPromise) return receiptOCRWorkerPromise;
+      receiptOCRWorkerPromise=(async()=>{
+        const worker=await Tesseract.createWorker();
+        await worker.loadLanguage('eng');
+        await worker.initialize('eng');
+        // 只辨識金額所需字元可顯著降低運算量；保留換行以利候選值排序。
+        await worker.setParameters({
+          tessedit_pageseg_mode:'6',
+          tessedit_char_whitelist:'0123456789,.-¥￥'
+        });
+        receiptOCRReady=true;
+        return worker;
+      })().catch(err=>{
+        receiptOCRWorkerPromise=null;
+        receiptOCRReady=false;
+        throw err;
+      });
+      return receiptOCRWorkerPromise;
+    }
+
+    function warmReceiptOCR(){
+      if(receiptOCRReady || receiptOCRWorkerPromise || !window.Tesseract) return;
+      const status=document.getElementById('ocr-status');
+      if(status) status.innerText='OCR 引擎背景準備中…首次約需數秒，之後會更快。';
+      getReceiptOCRWorker()
+        .then(()=>{if(status)status.innerText='✅ OCR 已就緒，可拍照快速辨識發票金額。';})
+        .catch(()=>{if(status)status.innerText='OCR 尚未載入；拍照時會再自動嘗試。';});
+    }
+
+    function loadImageFile(file){
+      return new Promise((resolve,reject)=>{
+        const r=new FileReader();
+        r.onload=()=>{
+          const im=new Image();
+          im.onload=()=>resolve(im);
+          im.onerror=reject;
+          im.src=r.result;
+        };
+        r.onerror=reject;
+        r.readAsDataURL(file);
+      });
+    }
+
+    async function prepareReceiptOCRImage(file){
+      const im=await loadImageFile(file);
+
+      // 控制 OCR 像素量：手機 12MP/48MP 原圖不直接丟進 OCR。
+      const maxW=1100,maxH=1800;
+      const scale=Math.min(1,maxW/im.width,maxH/im.height);
+      const w=Math.max(1,Math.round(im.width*scale));
+      const h=Math.max(1,Math.round(im.height*scale));
+      const c=document.createElement('canvas');
+      c.width=w;c.height=h;
+      const ctx=c.getContext('2d',{willReadFrequently:true});
+      ctx.drawImage(im,0,0,w,h);
+
+      // 灰階 + 溫和提升對比，改善熱感應收據淡字，不做重度二值化以免吃掉細字。
+      const img=ctx.getImageData(0,0,w,h);
+      const d=img.data;
+      for(let i=0;i<d.length;i+=4){
+        const gray=.299*d[i]+.587*d[i+1]+.114*d[i+2];
+        const contrast=Math.max(0,Math.min(255,(gray-128)*1.42+128));
+        d[i]=d[i+1]=d[i+2]=contrast;
+      }
+      ctx.putImageData(img,0,0);
+
+      return await new Promise((resolve,reject)=>{
+        c.toBlob(b=>b?resolve(b):reject(new Error('canvas blob failed')),'image/jpeg',.82);
+      });
+    }
+
+    function normalizeOCRNumber(raw){
+      const s=String(raw||'').replace(/[^\d.,]/g,'');
+      if(!s)return 0;
+      // 日幣通常無小數，OCR 的句點多半是誤辨識；逗號/句點一律當千位符號移除。
+      const n=parseInt(s.replace(/[.,]/g,''),10);
+      return Number.isFinite(n)?n:0;
+    }
+
+    function extractReceiptAmountCandidates(ocrText){
+      const lines=String(ocrText||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+      const bucket=new Map();
+
+      lines.forEach((line,lineIndex)=>{
+        const matches=[...line.matchAll(/[¥￥]?\s*(\d{1,3}(?:[,.]\d{3})+|\d{2,7})/g)];
+        matches.forEach(m=>{
+          const raw=m[0];
+          const value=normalizeOCRNumber(raw);
+          if(value<10 || value>500000)return;
+
+          // 排除常見日期／年份／電話型態
+          if(value>=1900 && value<=2099 && /^\D*20\d{2}\D*$/.test(line))return;
+          if(/\d{2,4}[\/\-]\d{1,2}[\/\-]\d{1,2}/.test(line) && value>=1000 && value<=2099)return;
+          if(/\d{2}:\d{2}/.test(line) && value<=2359)return;
+          if(/\d{8,}/.test(raw.replace(/[^\d]/g,'')))return;
+
+          let score=0;
+          if(/[¥￥]/.test(raw))score+=5;
+          if(/[,.]\d{3}/.test(raw))score+=3;
+          // 總額通常位於收據中後段
+          const pos=(lineIndex+1)/Math.max(lines.length,1);
+          if(pos>.55)score+=3;
+          else if(pos>.35)score+=1;
+          // 太整齊的 5,000/10,000 常是「預收現金」，略降權重
+          if(value>=5000 && value%1000===0)score-=1.5;
+          if(value>=100 && value<=100000)score+=1;
+
+          const prev=bucket.get(value)||{value,score:0,count:0,raw};
+          prev.score=Math.max(prev.score,score);
+          prev.count+=1;
+          prev.raw=raw;
+          bucket.set(value,prev);
+        });
+      });
+
+      // 同一金額在收據重複出現，通常比只出現一次更可信。
+      bucket.forEach(x=>{ if(x.count>1)x.score+=Math.min(4,(x.count-1)*1.5); });
+      return [...bucket.values()]
+        .sort((a,b)=>b.score-a.score || b.count-a.count || b.value-a.value)
+        .slice(0,4);
+    }
+
+    function createReceiptExpense(amount,receiptImage){
+      const id=Date.now();
+      expenses.unshift({
+        id,
+        note:'發票相片拍錄',
+        amount:Number(amount)||0,
+        currency:'JPY',
+        category:'購物',
+        payMethod:'現金',
+        time:new Date().toLocaleString('zh-TW',{hour12:false}),
+        receiptImage
+      });
+      saveExpenses();
+      renderExpenses();
+      return id;
+    }
+
+    function showReceiptOCRCandidates(candidates,receiptImage,elapsedMs){
+      const title=document.getElementById('modal-title');
+      const body=document.getElementById('modal-form-body');
+      title.innerText='確認發票金額';
+
+      const best=candidates[0]?.value||'';
+      const candidateHtml=candidates.length
+        ? candidates.map((c,i)=>`
+          <button type="button" onclick="document.getElementById('ocr-final-amount').value='${c.value}';document.querySelectorAll('.ocr-candidate-btn').forEach(x=>x.classList.remove('ring-2','ring-skyBlue'));this.classList.add('ring-2','ring-skyBlue')" class="ocr-candidate-btn w-full flex items-center justify-between p-3 rounded-xl border border-sand bg-paper text-left ${i===0?'ring-2 ring-skyBlue':''}">
+            <span class="text-gray-500">候選 ${i+1}</span>
+            <span class="font-bold text-wood text-base">¥${c.value.toLocaleString()}</span>
+          </button>`).join('')
+        : '<div class="p-3 rounded-xl bg-amber-50 text-amber-700 text-xs">沒有找到可靠金額，請直接手動輸入。</div>';
+
+      body.innerHTML=`
+        <div class="text-[10px] text-gray-400">快速辨識約 ${(elapsedMs/1000).toFixed(1)} 秒。系統不再直接採用最大數字，請從候選值確認總金額。</div>
+        ${receiptImage?`<img src="${receiptImage}" class="w-full max-h-36 object-contain rounded-xl bg-paper border border-sand">`:''}
+        <div class="space-y-2">${candidateHtml}</div>
+        <div>
+          <label class="block text-[10px] text-gray-400 mb-1">確認金額（JPY）</label>
+          <input id="ocr-final-amount" type="number" inputmode="numeric" value="${best}" placeholder="例如 1280" class="w-full p-3 bg-paper rounded-xl border border-sand font-bold text-base">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="closeGlobalModal()" class="py-2.5 rounded-xl bg-paper border border-sand text-gray-500 font-bold">取消</button>
+          <button type="button" onclick="confirmReceiptOCRAmount()" class="py-2.5 rounded-xl bg-skyBlue text-white font-bold">確認並記帳</button>
+        </div>
+      `;
+      window._pendingReceiptImage=receiptImage||'';
+      document.getElementById('global-modal').classList.remove('hidden');
+    }
+
+    function confirmReceiptOCRAmount(){
+      const amount=Number(document.getElementById('ocr-final-amount')?.value)||0;
+      if(amount<=0)return alert('請輸入正確的消費金額');
+      createReceiptExpense(amount,window._pendingReceiptImage||'');
+      window._pendingReceiptImage='';
+      closeGlobalModal();
+      const status=document.getElementById('ocr-status');
+      if(status)status.innerText=`✅ 已加入記帳：¥${amount.toLocaleString()}。`;
+    }
 
     async function scanReceiptOCR(input){
-      const file=input.files[0];if(!file)return;const statusEl=document.getElementById('ocr-status');statusEl.innerText='⌛ 快速辨識發票數字中...';
-      let receiptImage='';try{receiptImage=await compressReceipt(file)}catch(e){}
+      const file=input.files?.[0];
+      if(!file)return;
+      const statusEl=document.getElementById('ocr-status');
+      const t0=performance.now();
+      statusEl.innerText=receiptOCRReady?'⌛ 正在快速辨識金額…':'⌛ 第一次載入 OCR 並辨識，請稍候…';
+
+      let receiptImage='';
+      try{receiptImage=await compressReceipt(file,900,.68);}catch(e){}
+
       try{
-        const worker=await Tesseract.createWorker();await worker.loadLanguage('eng');await worker.initialize('eng');const ret=await worker.recognize(file);await worker.terminate();
-        const numbers=ret.data.text.match(/\d[\d,.]*/g);let maxAmount=0;if(numbers)numbers.forEach(s=>{const n=parseInt(s.replace(/[,.]/g,''),10);if(n>maxAmount&&n<300000)maxAmount=n});
-        const id=Date.now();expenses.unshift({id,note:'發票相片拍錄',amount:maxAmount||0,currency:'JPY',category:'購物',payMethod:'現金',time:new Date().toLocaleString('zh-TW',{hour12:false}),receiptImage});saveExpenses();renderExpenses();
-        statusEl.innerText=maxAmount>0?`✅ 辨識 ¥${maxAmount}，請點開明細確認金額`:'⚠️ 未辨識到金額，請點開明細手動輸入';editExpense(id);
-      }catch(err){console.error(err);const id=Date.now();expenses.unshift({id,note:'發票相片拍錄',amount:0,currency:'JPY',category:'購物',payMethod:'現金',time:new Date().toLocaleString('zh-TW',{hour12:false}),receiptImage});saveExpenses();renderExpenses();statusEl.innerText='⚠️ OCR 失敗，照片已保存，請手動輸入金額';editExpense(id);}
-      input.value='';
+        // OCR 用縮小、灰階、增強對比的圖片，不直接處理手機原始大圖。
+        const ocrImage=await prepareReceiptOCRImage(file);
+        const worker=await getReceiptOCRWorker();
+        const ret=await worker.recognize(ocrImage);
+        const candidates=extractReceiptAmountCandidates(ret?.data?.text||'');
+        const elapsed=performance.now()-t0;
+
+        statusEl.innerText=candidates.length
+          ? `✅ 辨識完成（${(elapsed/1000).toFixed(1)} 秒），請確認候選金額。`
+          : `⚠️ ${(elapsed/1000).toFixed(1)} 秒完成，但未找到可靠金額，請手動輸入。`;
+
+        showReceiptOCRCandidates(candidates,receiptImage,elapsed);
+      }catch(err){
+        console.error(err);
+        statusEl.innerText='⚠️ OCR 辨識失敗，請手動輸入金額；發票照片仍可保存。';
+        showReceiptOCRCandidates([],receiptImage,performance.now()-t0);
+      }finally{
+        input.value='';
+      }
     }
 
     // ---------------- 必買推薦：藥品／伴手禮／美食／超商 ----------------
