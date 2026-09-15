@@ -216,14 +216,6 @@
     .plan-progress-track{height:10px;background:#E8DFD3;border-radius:999px;overflow:hidden;}
     .plan-progress-fill{height:100%;background:#38A1DB;border-radius:999px;transition:width .25s ease;}
     .expense-summary-grid{display:grid;grid-template-columns:1.08fr .92fr;gap:14px;align-items:start;}
-    .expense-filter-row{display:flex;align-items:center;gap:8px;}
-    .expense-filter-icons{display:flex;gap:6px;overflow-x:auto;min-width:0;flex:1 1 auto;}
-    .expense-rate-inline{flex:0 0 auto;white-space:nowrap;font-size:10px;line-height:1.2;opacity:.82;}
-    .expense-rate-fallback{display:none;}
-    @media (max-width:390px){
-      .expense-rate-inline{display:none;}
-      .expense-rate-fallback{display:inline;}
-    }
     @media (max-width:360px){.expense-summary-grid{grid-template-columns:1fr;}}
 
 
@@ -341,7 +333,7 @@
         ⏳ 距離出發還有 <span id="splash-countdown" class="mx-1">--</span> 天
       </div>
       <button onclick="startApp()" class="w-full bg-white/95 hover:bg-white text-wood font-bold py-3.5 px-8 rounded-full shadow-glow border border-white text-sm tracking-widest btn-press flex items-center justify-center gap-2 mx-auto backdrop-blur-md">
-        <span>開始旅程149</span><i class="fa-solid fa-arrow-right text-xs text-torii"></i>
+        <span>開始旅程</span><i class="fa-solid fa-arrow-right text-xs text-torii"></i>
       </button>
     </div>
   </div>
@@ -372,13 +364,14 @@
           <div class="flex items-center justify-between gap-3">
             <div>
               <div class="text-xs font-bold text-wood"><i class="fa-solid fa-folder-open text-torii mr-1"></i>旅遊憑證（PDF／圖片）</div>
-              <div class="text-[9px] text-gray-400 mt-1">可將機票、住宿、門票等 PDF 或圖片憑證儲存在此裝置。</div>
+              <div class="text-[9px] text-gray-400 mt-1">僅儲存在此瀏覽器／裝置，不會上傳 GitHub 或雲端；可離線查看。</div>
             </div>
             <label class="px-3 py-2 rounded-xl bg-sakuraLight text-torii text-[10px] font-bold btn-press cursor-pointer whitespace-nowrap">
-              <i class="fa-solid fa-upload mr-1"></i>上傳憑證
+              <i class="fa-solid fa-folder-plus mr-1"></i>加入憑證
               <input id="booking-pdf-input" type="file" accept="application/pdf,.pdf,image/*,.jpg,.jpeg,.png,.webp,.gif,.heic,.heif" multiple class="hidden">
             </label>
           </div>
+          <div id="booking-storage-status" class="text-[9px] text-gray-400 mt-2">檢查本機儲存空間中…</div>
           <div id="booking-pdf-list" class="space-y-2 mt-3"></div>
         </div>
 
@@ -505,7 +498,7 @@
           <div class="min-w-0">
             <div id="expense-total-label" class="text-xs opacity-80">總累計支出</div>
             <div class="text-2xl keep-text-2xl font-bold tracking-tight mt-2">NT$ <span id="total-twd">0</span></div>
-            <div class="text-xs opacity-90 mt-2">日幣總額: ¥<span id="total-jpy">0</span><span class="expense-rate-fallback">（預設匯率 <span id="rate-display-fallback">0.22</span>）</span></div>
+            <div class="text-xs opacity-90 mt-2">日幣總額: ¥<span id="total-jpy">0</span></div>
           </div>
           <div class="text-right min-w-0">
             <div id="expense-budget-label" class="text-xs opacity-80">旅遊總預算</div>
@@ -522,9 +515,8 @@
           </div>
         </div>
 
-        <!-- 分類 Icon + 匯率同列；窄螢幕時匯率自動移至「日幣總額」後方 -->
-        <div class="expense-filter-row pt-3 border-t border-white/20">
-          <div class="expense-filter-icons no-scrollbar text-xs">
+        <!-- 總計角落純 Icon 分類選單 ($ / 🍴 / 🚃 / 🛍️ / 🎟️ / 🎁 / 🪙) -->
+        <div class="flex gap-1.5 pt-3 border-t border-white/20 overflow-x-auto no-scrollbar text-xs">
           <button onclick="filterExpenseCategory('全部')" data-expense-cat="全部" title="全部" class="expense-filter-btn active px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/40 font-bold btn-press">
             <i class="fa-solid fa-dollar-sign"></i>
           </button>
@@ -546,9 +538,8 @@
           <button onclick="filterExpenseCategory('其他')" data-expense-cat="其他" title="其他" class="expense-filter-btn px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/40 btn-press">
             <i class="fa-solid fa-coins"></i>
           </button>
-          </div>
-          <div class="expense-rate-inline">預設匯率 <span id="rate-display-inline">0.22</span></div>
         </div>
+        <div class="text-[10px] opacity-75 text-right -mt-1">預設匯率 <span id="rate-display">0.22</span></div>
       </div>
 
       <!-- OCR 文字掃描記帳 -->
@@ -812,24 +803,101 @@
   <!-- ================= 6. JavaScript 邏輯引擎 ================= -->
   <script>
 
+
+    // ===== v14.10 本機儲存隔離：避免同一 GitHub Pages 網域下不同專案互相覆蓋 =====
+    const APP_STORAGE_PREFIX='tokyo-v14::';
+    const rawLocalStorage=window.localStorage;
+    const LEGACY_APP_KEYS=['tokyo-days-v2','tokyo-expenses-v2','tokyo-rate-v2','tokyo-budget-v2','tokyo-shop-v2','tokyo-journals-v2','tokyo-plan-v2'];
+
+    function appStorageKey(key){return APP_STORAGE_PREFIX+String(key);}
+    function appStorageGet(key){return rawLocalStorage.getItem(appStorageKey(key));}
+    function appStorageSet(key,value){return rawLocalStorage.setItem(appStorageKey(key),value);}
+    function appStorageRemove(key){return rawLocalStorage.removeItem(appStorageKey(key));}
+
+    function migrateLegacyAppStorage(){
+      try{
+        const marker=APP_STORAGE_PREFIX+'__migrated';
+        if(rawLocalStorage.getItem(marker)==='1')return;
+
+        LEGACY_APP_KEYS.forEach(key=>{
+          const scoped=appStorageKey(key);
+          if(rawLocalStorage.getItem(scoped)==null){
+            const legacy=rawLocalStorage.getItem(key);
+            if(legacy!=null)rawLocalStorage.setItem(scoped,legacy);
+          }
+        });
+
+        const dynamic=[];
+        for(let i=0;i<rawLocalStorage.length;i++){
+          const k=rawLocalStorage.key(i);
+          if(k && (k.startsWith('note-')||k.startsWith('tokyo-weather-')))dynamic.push(k);
+        }
+        dynamic.forEach(key=>{
+          const scoped=appStorageKey(key);
+          if(rawLocalStorage.getItem(scoped)==null){
+            const legacy=rawLocalStorage.getItem(key);
+            if(legacy!=null)rawLocalStorage.setItem(scoped,legacy);
+          }
+        });
+
+        rawLocalStorage.setItem(marker,'1');
+      }catch(e){console.warn('local storage migration',e);}
+    }
+    migrateLegacyAppStorage();
+
     // ===== v12 使用者媒體資料庫：照片不再塞入 localStorage =====
-    const MEDIA_DB='tokyo-media-v1';
+    const LEGACY_MEDIA_DB='tokyo-media-v1';
+    const MEDIA_DB='tokyo-v14-media-v2';
     const MEDIA_STORE='media';
     const MEDIA_PREFIX='idbmedia:';
     const mediaObjectUrlCache=new Map();
 
     function openMediaDB(){
       return new Promise((resolve,reject)=>{
+        if(!('indexedDB' in window)){reject(new Error('IndexedDB unavailable'));return;}
         const req=indexedDB.open(MEDIA_DB,1);
         req.onupgradeneeded=()=>{
           const db=req.result;
-          if(!db.objectStoreNames.contains(MEDIA_STORE)){
-            db.createObjectStore(MEDIA_STORE,{keyPath:'id'});
-          }
+          if(!db.objectStoreNames.contains(MEDIA_STORE))db.createObjectStore(MEDIA_STORE,{keyPath:'id'});
         };
         req.onsuccess=()=>resolve(req.result);
-        req.onerror=()=>reject(req.error);
+        req.onerror=()=>reject(req.error||new Error('Media DB open failed'));
+        req.onblocked=()=>reject(new Error('Media DB blocked'));
       });
+    }
+
+    async function migrateLegacyMediaDB(){
+      try{
+        const target=await openMediaDB();
+        const existing=await new Promise((resolve,reject)=>{
+          const r=target.transaction(MEDIA_STORE,'readonly').objectStore(MEDIA_STORE).getAllKeys();
+          r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);
+        });
+        target.close();
+        if(existing.length)return;
+
+        const legacy=await new Promise((resolve,reject)=>{
+          const r=indexedDB.open(LEGACY_MEDIA_DB);
+          r.onsuccess=()=>resolve(r.result);
+          r.onerror=()=>reject(r.error);
+          r.onupgradeneeded=()=>{};
+        });
+        if(!legacy.objectStoreNames.contains(MEDIA_STORE)){legacy.close();return;}
+        const items=await new Promise((resolve,reject)=>{
+          const r=legacy.transaction(MEDIA_STORE,'readonly').objectStore(MEDIA_STORE).getAll();
+          r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);
+        });
+        legacy.close();
+        if(!items.length)return;
+
+        const db=await openMediaDB();
+        await new Promise((resolve,reject)=>{
+          const tx=db.transaction(MEDIA_STORE,'readwrite'),store=tx.objectStore(MEDIA_STORE);
+          items.forEach(x=>store.put(x));
+          tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+        });
+        db.close();
+      }catch(e){console.warn('legacy media DB migration',e);}
     }
 
     function isMediaRef(v){return typeof v==='string' && v.startsWith(MEDIA_PREFIX);}
@@ -993,12 +1061,6 @@
           btn.classList.remove('active');
         }
       });
-
-      // 頁面切換時主動重新繪製，避免舊版 localStorage 或初始化順序造成空白。
-      if(tabName==='shopping') setTimeout(()=>safeRenderShopContent(),0);
-      if(tabName==='planning') setTimeout(()=>safeRenderPlanChecklist(),0);
-      if(tabName==='journal') setTimeout(()=>{try{renderJournals()}catch(e){console.warn(e)}},0);
-      if(tabName==='expense') setTimeout(()=>{try{renderExpenses()}catch(e){console.warn(e)}},0);
     }
 
     // ---------------- 行程：完整行程、A/B 組、拖曳時間與跨日 ----------------
@@ -1022,7 +1084,7 @@
     }
     function loadDaysData(){
       try{
-        const saved=localStorage.getItem('tokyo-days-v2');
+        const saved=appStorageGet('tokyo-days-v2');
         if(!saved)return JSON.parse(JSON.stringify(seedDaysData));
         const current=JSON.parse(saved);
         if(!Array.isArray(current))return JSON.parse(JSON.stringify(seedDaysData));
@@ -1032,12 +1094,12 @@
         });
         const order=new Map(seedDaysData.map((d,i)=>[d.date,i]));
         current.sort((a,b)=>(order.get(a.date)??999)-(order.get(b.date)??999));
-        try{localStorage.setItem('tokyo-days-v2',JSON.stringify(current));}catch(_){/* 媒體遷移完成後會釋放 localStorage */}
+        try{appStorageSet('tokyo-days-v2',JSON.stringify(current));}catch(_){/* 媒體遷移完成後會釋放 localStorage */}
         return current;
       }catch(e){return JSON.parse(JSON.stringify(seedDaysData));}
     }
     let daysData = loadDaysData();
-    function saveDays(){ localStorage.setItem('tokyo-days-v2', JSON.stringify(daysData)); }
+    function saveDays(){ appStorageSet('tokyo-days-v2', JSON.stringify(daysData)); }
 
     const datePicker = document.getElementById('date-picker');
     function renderDatePicker(){
@@ -1110,7 +1172,7 @@
         const card=document.createElement('div');
         card.className='draggable-card relative pl-12 cursor-grab active:cursor-grabbing select-none transition-all duration-200';
         card.draggable=true; card.dataset.itemId=item.id; card.dataset.index=originalIndex;
-        const savedPersonalNote=localStorage.getItem(`note-${item.id}`)||'';
+        const savedPersonalNote=appStorageGet(`note-${item.id}`)||'';
         card.innerHTML=`
           <div class="absolute left-0 top-3 px-1.5 py-0.5 rounded-md bg-skyBlue text-white text-[10px] font-bold z-10 shadow-sm border border-paper">${item.time}</div>
           <div class="card-body bg-card rounded-2xl p-3.5 shadow-soft border border-sand space-y-2 transition-all">
@@ -1230,7 +1292,8 @@
 
     function accordionToggle(id){const el=document.getElementById(id);const open=!el.classList.contains('hidden');document.querySelectorAll('.accordion-content').forEach(c=>c.classList.add('hidden'));if(!open)el.classList.remove('hidden');}
     async function deleteScheduleItemById(id){if(confirm('確定刪除此行程嗎？')){const item=daysData[currentDayIndex].items.find(x=>x.id===id);if(item?.image)await deleteMediaRef(item.image);daysData[currentDayIndex].items=daysData[currentDayIndex].items.filter(x=>x.id!==id);saveDays();renderTimeline(currentDayIndex)}}
-    function saveNote(id,val){localStorage.setItem(`note-${id}`,val)}
+    function saveNote(id,val){appStorageSet(`note-${id}`,val)}
+    renderDatePicker();renderTimeline(0);
 
 
     function findScheduleItemById(id){
@@ -1297,17 +1360,17 @@
     }
 
     // ---------------- 記帳：照片保存、點擊展開、可編輯 OCR 金額 ----------------
-    let expenses = (()=>{try{const s=localStorage.getItem('tokyo-expenses-v2');return s?JSON.parse(s):[
+    let expenses = (()=>{try{const s=appStorageGet('tokyo-expenses-v2');return s?JSON.parse(s):[
       { id:1,note:'一蘭拉麵',amount:1980,currency:'JPY',category:'餐飲',payMethod:'現金',time:'2026/10/25 18:30',receiptImage:'' },
       { id:2,note:'Suica 加值',amount:3000,currency:'JPY',category:'交通',payMethod:'交通卡',time:'2026/10/25 13:30',receiptImage:'' }
     ]}catch(e){return[]}})();
     let currentCategoryFilter='全部';
-    function saveExpenses(){localStorage.setItem('tokyo-expenses-v2',JSON.stringify(expenses));localStorage.setItem('tokyo-rate-v2',String(currentExchangeRate));}
-    const savedRate=parseFloat(localStorage.getItem('tokyo-rate-v2')); if(!isNaN(savedRate))currentExchangeRate=savedRate;
-    let travelBudget=parseFloat(localStorage.getItem('tokyo-budget-v2')); if(isNaN(travelBudget)||travelBudget<=0)travelBudget=80000;
-    function saveBudget(){localStorage.setItem('tokyo-budget-v2',String(travelBudget));}
+    function saveExpenses(){appStorageSet('tokyo-expenses-v2',JSON.stringify(expenses));appStorageSet('tokyo-rate-v2',String(currentExchangeRate));}
+    const savedRate=parseFloat(appStorageGet('tokyo-rate-v2')); if(!isNaN(savedRate))currentExchangeRate=savedRate;
+    let travelBudget=parseFloat(appStorageGet('tokyo-budget-v2')); if(isNaN(travelBudget)||travelBudget<=0)travelBudget=80000;
+    function saveBudget(){appStorageSet('tokyo-budget-v2',String(travelBudget));}
 
-    function changeExchangeRate(){const n=prompt('請輸入新匯率 (例如 0.22):',currentExchangeRate);if(n&&!isNaN(n)){currentExchangeRate=parseFloat(n);['rate-display-inline','rate-display-fallback'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerText=currentExchangeRate;});saveExpenses();renderExpenses();calcToolExchange();}}
+    function changeExchangeRate(){const n=prompt('請輸入新匯率 (例如 0.22):',currentExchangeRate);if(n&&!isNaN(n)){currentExchangeRate=parseFloat(n);document.getElementById('rate-display').innerText=currentExchangeRate;saveExpenses();renderExpenses();calcToolExchange();}}
     function openExpenseSettings(){
       document.getElementById('modal-title').innerHTML='<span><i class="fa-solid fa-gear text-skyBlue mr-2"></i>記帳設定</span>';
       document.getElementById('modal-form-body').innerHTML=`
@@ -1324,7 +1387,8 @@
       currentCategoryFilter=cat;
       document.getElementById('expense-list-title').innerText=`支出明細 (${cat})`;
       document.querySelectorAll('.expense-filter-btn').forEach(b=>b.classList.toggle('active',b.dataset.expenseCat===cat));
-      }
+      renderExpenses();
+    }
 
     function expenseDateInfo(item){
       const raw=String(item?.time||'').trim();
@@ -1432,7 +1496,6 @@
       const spentTwd=expenses.reduce((sum,item)=>{const amount=Number(item.amount)||0;return sum+(item.currency==='JPY'?amount*currentExchangeRate:amount)},0);
       document.getElementById('total-jpy').innerText=Math.round(displayTotalJpy).toLocaleString();
       document.getElementById('total-twd').innerText=Math.round(displayTotalTwd).toLocaleString();
-      ['rate-display-inline','rate-display-fallback'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerText=currentExchangeRate;});
       document.getElementById('rate-display').innerText=currentExchangeRate;
       const label=document.getElementById('expense-total-label');
       if(label)label.innerText=currentCategoryFilter==='全部'?'總累計支出':currentCategoryFilter+'累計支出';
@@ -1659,63 +1722,6 @@
       return id;
     }
 
-    function showReceiptOCRProcessing(receiptImage){
-      const title=document.getElementById('modal-title');
-      const body=document.getElementById('modal-form-body');
-      title.innerText='確認發票金額';
-      body.innerHTML=`
-        <div class="text-[10px] text-gray-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i>正在快速辨識金額；你也可以先自行輸入標題、分類與金額。</div>
-        ${receiptImage?`<img src="${receiptImage}" class="w-full max-h-36 object-contain rounded-xl bg-paper border border-sand">`:''}
-        <div id="ocr-candidate-area" class="p-3 rounded-xl bg-skyLight text-skyBlue text-xs">OCR 辨識中…</div>
-        <div>
-          <label class="block text-[10px] text-gray-400 mb-1">記帳標題</label>
-          <input id="ocr-expense-title" type="text" value="" placeholder="例如：晚餐、藥妝、伴手禮" class="w-full p-3 bg-paper rounded-xl border border-sand font-bold text-base">
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <div>
-            <label class="block text-[10px] text-gray-400 mb-1">消費分類</label>
-            <select id="ocr-expense-category" class="w-full p-3 bg-paper rounded-xl border border-sand font-bold text-base">
-              <option value="餐飲">餐飲</option>
-              <option value="交通">交通</option>
-              <option value="購物" selected>購物</option>
-              <option value="票券">票券</option>
-              <option value="伴手禮">伴手禮</option>
-              <option value="其他">其他</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-[10px] text-gray-400 mb-1">確認金額（JPY）</label>
-            <input id="ocr-final-amount" type="number" inputmode="numeric" value="" placeholder="可先手動輸入" class="w-full p-3 bg-paper rounded-xl border border-sand font-bold text-base">
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <button type="button" onclick="closeGlobalModal()" class="py-2.5 rounded-xl bg-paper border border-sand text-gray-500 font-bold">取消</button>
-          <button id="ocr-confirm-btn" type="button" onclick="confirmReceiptOCRAmount()" class="py-2.5 rounded-xl bg-skyBlue text-white font-bold disabled:opacity-50">確認並記帳</button>
-        </div>
-      `;
-      window._pendingReceiptImage=receiptImage||'';
-      document.getElementById('global-modal').classList.remove('hidden');
-    }
-
-    function updateReceiptOCRCandidatesInPlace(candidates,elapsedMs){
-      const area=document.getElementById('ocr-candidate-area');
-      if(!area)return false;
-      const amountInput=document.getElementById('ocr-final-amount');
-      if(candidates.length){
-        area.className='space-y-2';
-        area.innerHTML=candidates.map((c,i)=>`
-          <button type="button" onclick="document.getElementById('ocr-final-amount').value='${c.value}';document.querySelectorAll('.ocr-candidate-btn').forEach(x=>x.classList.remove('ring-2','ring-skyBlue'));this.classList.add('ring-2','ring-skyBlue')" class="ocr-candidate-btn w-full flex items-center justify-between p-3 rounded-xl border border-sand bg-paper text-left ${i===0?'ring-2 ring-skyBlue':''}">
-            <span class="text-gray-500">候選 ${i+1}</span>
-            <span class="font-bold text-wood text-base">¥${c.value.toLocaleString()}</span>
-          </button>`).join('');
-        if(amountInput && !amountInput.value)amountInput.value=candidates[0].value;
-      }else{
-        area.className='p-3 rounded-xl bg-amber-50 text-amber-700 text-xs';
-        area.innerHTML=`${elapsedMs>0?'辨識完成，但':''}沒有找到可靠金額，請直接手動輸入。`;
-      }
-      return true;
-    }
-
     function showReceiptOCRCandidates(candidates,receiptImage,elapsedMs){
       const title=document.getElementById('modal-title');
       const body=document.getElementById('modal-form-body');
@@ -1796,7 +1802,6 @@
 
       let receiptImage='';
       try{receiptImage=await compressReceipt(file,900,.68);}catch(e){}
-      showReceiptOCRProcessing(receiptImage);
 
       try{
         // OCR 用縮小、灰階、增強對比的圖片，不直接處理手機原始大圖。
@@ -1810,15 +1815,11 @@
           ? `✅ 辨識完成（${(elapsed/1000).toFixed(1)} 秒），請確認候選金額。`
           : `⚠️ ${(elapsed/1000).toFixed(1)} 秒完成，但未找到可靠金額，請手動輸入。`;
 
-        if(!updateReceiptOCRCandidatesInPlace(candidates,elapsed)){
-          showReceiptOCRCandidates(candidates,receiptImage,elapsed);
-        }
+        showReceiptOCRCandidates(candidates,receiptImage,elapsed);
       }catch(err){
         console.error(err);
         statusEl.innerText='⚠️ OCR 辨識失敗，請手動輸入金額；發票照片仍可保存。';
-        if(!updateReceiptOCRCandidatesInPlace([],performance.now()-t0)){
-          showReceiptOCRCandidates([],receiptImage,performance.now()-t0);
-        }
+        showReceiptOCRCandidates([],receiptImage,performance.now()-t0);
       }finally{
         input.value='';
       }
@@ -1827,61 +1828,20 @@
     // ---------------- 必買推薦：藥品／伴手禮／美食／超商 ----------------
     let activeShopTab = '藥品';
     const shopSeedData = {"藥品":[{"name":"合利他命 EX PLUS","note":"維生素B群，常見於眼睛疲勞、肩頸僵硬與腰部不適需求。","image":"./images/shop/default_01.webp","location":"","wiki":"合利他命"},{"name":"EVE QUICK 頭痛藥 DX","note":"日本常見止痛藥，頭痛、經痛等；使用前確認成分與禁忌。","image":"","location":"","wiki":"EVE"},{"name":"大正百保能","note":"日本常見綜合感冒藥，需留意與其他感冒／止痛藥成分重複。","image":"./images/shop/default_02.webp","location":"","wiki":"大正百保能"},{"name":"CABAGIN KOWA α PLUS","note":"常見胃腸藥，適合胃脹、消化不良等胃部不適需求。","image":"","location":"","wiki":"CABAGIN"},{"name":"太田胃散","note":"日本經典胃腸藥，吃太多、胃脹及消化不良時常見。","image":"./images/shop/default_03.webp","location":"","wiki":"太田胃散"},{"name":"Sante FX V Plus","note":"清涼型眼藥水，主要針對眼睛疲勞；注意隱形眼鏡使用限制。","image":"","location":"","wiki":"Sante"},{"name":"ROHTO Z!","note":"樂敦清涼型眼藥水，眼睛疲勞、充血等；確認隱形眼鏡限制。","image":"./images/shop/default_04.webp","location":"","wiki":"ROHTO"},{"name":"MUHI BABY 寶寶止癢液／軟膏","note":"寶寶／兒童常見蚊蟲叮咬止癢用品，依產品標示年齡使用。","image":"./images/shop/05_MUHI_BABY.webp","location":"","wiki":"MUHI"},{"name":"護那酷止癢藥水","note":"蚊蟲叮咬止癢液，塗抹後具有明顯清涼感。","image":"./images/shop/default_05.webp","location":"","wiki":"護那酷"},{"name":"ROHTO 樂敦 GOLD 40","note":"常見眼藥水系列，主要用於眼睛疲勞等不適。","image":"./images/shop/default_06.webp","location":"","wiki":"ROHTO"},{"name":"龍角散 Direct","note":"日本經典喉嚨用藥，可依需求選擇顆粒、粉末等產品。","image":"./images/shop/default_07.webp","location":"","wiki":"龍角散"},{"name":"Chocola BB Plus","note":"日本常見維生素B群產品，以維生素B2系列最具代表性。","image":"","location":"","wiki":"Chocola"},{"name":"Sante Beautéye 小花眼藥水","note":"外觀辨識度高的參天眼藥水，購買時確認實際版本與用途。","image":"./images/shop/default_08.webp","location":"","wiki":"Sante"},{"name":"大正製藥 Quick Care 口內炎藥膏","note":"口腔潰瘍／口內炎外用藥，直接使用於患部。","image":"./images/shop/default_09.webp","location":"","wiki":"大正製藥"},{"name":"Salonpas 撒隆巴斯酸痛貼布","note":"肩頸、腰部及肌肉痠痛常見外用貼布。","image":"./images/shop/default_10.webp","location":"","wiki":"Salonpas"},{"name":"Vantelin 專業級貼布","note":"肌肉與關節痠痛常見外用貼布，使用前請依產品標示確認適用方式。","image":"./images/shop/default_11.webp","location":"","wiki":"Vantelin"}],"伴手禮":[{"name":"東京 Banana","note":"東京代表性香蕉卡士達蛋糕，包裝與限定聯名款辨識度高。","image":"./images/shop/default_12.webp","location":"","wiki":"東京"},{"name":"New York Perfect Cheese","note":"起司奶油與巧克力搭配薄脆餅乾，東京熱門排隊伴手禮。","image":"","location":"","wiki":"New"},{"name":"N.Y.C. SAND","note":"焦糖與巧克力夾心餅乾，濃郁且適合送禮。","image":"","location":"","wiki":"N.Y.C."},{"name":"PRESS BUTTER SAND","note":"酥脆餅乾夾奶油霜與焦糖內餡，東京車站常見。","image":"","location":"","wiki":"PRESS"},{"name":"Sugar Butter Tree 砂糖奶油樹","note":"穀物餅乾夾白巧克力，獨立包裝適合分送。","image":"","location":"","wiki":"Sugar"},{"name":"The Maple Mania 楓糖男孩","note":"楓糖奶油香濃，復古包裝且很有秋季東京氣氛。","image":"","location":"","wiki":"The"},{"name":"鬱金香餅乾","note":"花朵造型餅乾與巧克力奶油，外觀精緻適合送禮。","image":"./images/shop/default_13.webp","location":"","wiki":"鬱金香餅乾"},{"name":"資生堂 Parlour 花椿餅乾","note":"銀座經典老牌甜點，花椿鐵盒很有收藏感。","image":"./images/shop/default_14.webp","location":"","wiki":"資生堂"},{"name":"NUMBER SUGAR 手工牛奶糖","note":"表參道人氣手工牛奶糖，不同編號代表不同口味。","image":"","location":"","wiki":"NUMBER"},{"name":"銀座年輪家","note":"東京知名年輪蛋糕，外層香酥、內裡柔軟。","image":"","location":"","wiki":"銀座年輪家"},{"name":"東京晴空戀巧巧克力","note":"東京晴空塔主題巧克力伴手禮，東京辨識度高。","image":"","location":"","wiki":"東京晴空戀巧巧克力"},{"name":"東京牛奶起司工坊","note":"牛奶與起司風味濃郁，招牌夾心餅乾很受歡迎。","image":"","location":"","wiki":"東京牛奶起司工坊"},{"name":"Y雪茄餅乾","note":"經典奶油雪茄蛋捲，酥脆且包裝精緻。","image":"./images/shop/default_15.webp","location":"","wiki":"YOKU MOKU"},{"name":"ROYCE' 生巧克力","note":"北海道知名巧克力品牌，東京機場與百貨也常見。","image":"./images/shop/default_16.webp","location":"","wiki":"ROYCE'"},{"name":"PISTA & TOKYO","note":"開心果甜點專門品牌，層次濃郁且包裝適合送禮。","image":"","location":"","wiki":"PISTA"}],"美食":[{"name":"淺草炸肉餅（浅草メンチ）","note":"淺草｜黑毛和牛混高座豬，外皮酥脆、肉汁豐富。","image":"","location":"Asakusa Menchi Tokyo","wiki":"淺草炸肉餅"},{"name":"淺草花月堂","note":"淺草｜巨無霸菠蘿麵包，外酥內鬆軟，可搭配冰淇淋。","image":"./images/shop/02_img.webp","location":"Asakusa Kagetsudo","wiki":"淺草花月堂"},{"name":"龜十（亀十）","note":"淺草｜人氣銅鑼燒，餅皮蓬鬆、紅豆與白豆沙細緻。","image":"","location":"Kameju Asakusa","wiki":"龜十"},{"name":"淺草吉備糰子 あづま","note":"淺草｜現裹黃豆粉的小糰子，適合搭冰鎮甘酒。","image":"","location":"Asakusa Kibidango Azuma","wiki":"淺草吉備糰子"},{"name":"淺草うなな Unana","note":"淺草｜炭烤鰻魚飯糰串，飯糰焦香配厚實蒲燒鰻魚。","image":"","location":"Asakusa Unana","wiki":"淺草うなな"},{"name":"壽々喜園 Suzukien","note":"淺草｜抹茶冰淇淋濃度分級，No.7 是招牌挑戰。","image":"","location":"Suzukien Asakusa","wiki":"壽々喜園"},{"name":"肉的大山","note":"上野｜肉舖直營炸物，Menchi-katsu 與和牛可樂餅熱門。","image":"./images/shop/01_img.jpg","location":"Niku no Oyama Ueno","wiki":"肉的大山"},{"name":"みなとや Minatoya","note":"上野｜阿美橫丁海鮮丼與章魚燒人氣店。","image":"","location":"Minatoya Ueno Ameyoko","wiki":"みなとや"},{"name":"みはし上野本店","note":"上野｜老字號日式甜點，白玉餡蜜是代表品項。","image":"./images/shop/12_img.png","location":"Mihashi Ueno","wiki":"みはし上野本店"},{"name":"茶之君野園","note":"上野｜百年茶舖抹茶霜淇淋，抹茶＋牛奶綜合口味平衡。","image":"","location":"Cha no Kiminoen Ueno","wiki":"茶之君野園"},{"name":"築地山長 玉子燒","note":"築地｜高湯玉子燒，適合市場散步時現買現吃。","image":"./images/shop/11_img.jpg","location":"Tsukiji Yamacho","wiki":"築地山長"},{"name":"丸豐飯糰","note":"築地｜大份量飯糰，半熟蛋搭鮭魚或明太子很熱門。","image":"","location":"Marutoyo Tsukiji","wiki":"丸豐飯糰"},{"name":"築地黑銀","note":"築地｜現切黑鮪魚壽司串、生魚片與小丼飯。","image":"","location":"Maguroya Kurogin Tsukiji","wiki":"築地黑銀"},{"name":"人形町志乃多壽司","note":"日本橋｜百年豆皮壽司與干瓢捲老店。","image":"","location":"Ningyocho Shinodazushi","wiki":"人形町志乃多壽司"},{"name":"GARIGUETTE 表參道","note":"表參道｜圓形法式千層酥 Mille-pressé，酥脆現做。","image":"","location":"GARIGUETTE Omotesando","wiki":"GARIGUETTE"},{"name":"Marion Crepes 原宿","note":"原宿｜日本可麗餅老字號，草莓鮮奶油與起司蛋糕口味熱門。","image":"./images/shop/10_marion_crepes.jpg","location":"Marion Crepes Harajuku","wiki":"Marion"},{"name":"LUKE'S LOBSTER 表參道","note":"表參道｜奶油麵包夾滿龍蝦肉，方便邊逛邊吃。","image":"./images/shop/09_luke_s_lobster.webp","location":"Lukes Lobster Omotesando","wiki":"LUKE'S"},{"name":"THE MATCHA TOKYO","note":"原宿｜抹茶專賣店，招牌抹茶拿鐵與有機抹茶甜點。","image":"","location":"The Matcha Tokyo Omotesando","wiki":"THE"},{"name":"Calbee+","note":"原宿／東京站｜現炸洋芋片與薯條，可搭巧克力醬或霜淇淋。","image":"./images/shop/08_calbee.jpg","location":"Calbee Plus Tokyo","wiki":"Calbee+"},{"name":"RINGO 蘋果派","note":"池袋等｜酥皮卡士達蘋果派，外酥內帶大塊蘋果。","image":"./images/shop/07_ringo.jpg","location":"RINGO Apple Pie Ikebukuro","wiki":"RINGO"},{"name":"神田達磨 鯛魚燒","note":"秋葉原／神田｜帶翅鯛魚燒邊緣香脆，紅豆餡甜而不膩。","image":"./images/shop/06_img.jpg","location":"Kanda Daruma Taiyaki","wiki":"神田達磨"},{"name":"銀章魚 Gindaco","note":"澀谷等｜外酥內軟章魚燒，明太子起司口味很受歡迎。","image":"","location":"Gindaco Tokyo","wiki":"銀章魚"}],"超商":[{"name":"Famichiki ファミチキ","note":"FamilyMart｜招牌無骨炸雞，外皮酥脆、雞肉柔嫩多汁。","image":"","location":"FamilyMart","wiki":"Famichiki"},{"name":"Uchi Café Premium Roll Cake","note":"LAWSON｜經典生乳鮮奶油蛋糕捲，口感柔軟滑順。","image":"","location":"Lawson","wiki":"Uchi"},{"name":"Karaage-kun からあげクン","note":"LAWSON｜杯裝炸雞塊代表商品，原味與期間限定口味都熱門。","image":"","location":"Lawson","wiki":"Karaage-kun"},{"name":"LAWSON 蛋沙拉三明治","note":"LAWSON｜日本超商早餐經典，蛋沙拉滑順、方便帶著吃。","image":"./images/shop/04_Lawson.jfif","location":"Lawson","wiki":"LAWSON"},{"name":"鮪魚美乃滋飯糰","note":"7-Eleven／FamilyMart／LAWSON｜日本超商最經典飯糰口味之一。","image":"","location":"日本各大超商","wiki":"鮪魚美乃滋飯糰"},{"name":"7-Premium 金のワッフルコーン","note":"7-Eleven｜高階牛奶香草霜淇淋，脆皮甜筒香氣明顯。","image":"","location":"7-Eleven","wiki":"7-Premium"},{"name":"OHAYO BRULEE MILK","note":"7-Eleven／LAWSON 等｜上層焦糖脆殼搭濃郁牛奶冰淇淋。","image":"./images/shop/03_OHAYO_BRULEE_MILK.jfif","location":"日本超商／超市","wiki":"OHAYO"},{"name":"TOUGH GUMMY／THE STRONG","note":"7-Eleven 等｜高咀嚼感硬式軟糖，葡萄、檸檬等口味常見。","image":"","location":"日本超商／藥妝","wiki":"TOUGH"},{"name":"Chocola BB Light 系列飲料","note":"日本超商／藥妝｜常見維生素機能飲料，與藥品錠劑分開選購。","image":"","location":"日本超商／藥妝","wiki":"Chocola"},{"name":"Uchi Café 泡芙系列","note":"LAWSON｜奶油內餡豐富的冷藏甜點，口味會隨季節更換。","image":"","location":"Lawson","wiki":"Uchi"}],"其他":[{"name":"川崎雙頭畫筆","note":"文具手帳專用","image":"","location":"","wiki":""}],"購物清單":[{"name":"Suica 卡","checked":true,"category":"其他"}]};
-    function sanitizeShopData(raw){
-      const out={};
-      const cats=['藥品','伴手禮','美食','超商','其他','購物清單'];
-      cats.forEach(cat=>{
-        const source=Array.isArray(raw?.[cat])?raw[cat]:[];
-        out[cat]=source.filter(x=>x && typeof x==='object');
-      });
-
-      // 舊版本資料若整體遺失或損壞，直接恢復最新版預設內容。
-      const contentCount=['藥品','伴手禮','美食','超商','其他'].reduce((n,cat)=>n+out[cat].filter(x=>String(x?.name||'').trim()).length,0);
-      if(contentCount===0){
-        return JSON.parse(JSON.stringify(shopSeedData));
-      }
-
-      // 保留使用者資料，同時補回新版預設品項。
-      ['藥品','伴手禮','美食','超商','其他'].forEach(cat=>{
-        out[cat]=out[cat].filter(x=>String(x?.name||'').trim());
-        shopSeedData[cat].forEach(seed=>{
-          if(!out[cat].some(x=>String(x?.name||'')===seed.name)) out[cat].push({...seed});
-        });
-        out[cat].forEach(x=>{
-          if(x.image===undefined)x.image='';
-          if(x.location===undefined)x.location='';
-          if(x.wiki===undefined)x.wiki='';
-          if(x.note===undefined)x.note='';
-        });
-      });
-
-      out['購物清單']=out['購物清單']
-        .filter(x=>String(x?.name||'').trim())
-        .map(x=>({...x,checked:!!x.checked,category:x.category||'其他'}));
-
-      return out;
-    }
-
-    let shopData = (()=>{
-      try{
-        const s=localStorage.getItem('tokyo-shop-v2');
-        return sanitizeShopData(s?JSON.parse(s):shopSeedData);
-      }catch(e){
-        console.warn('shop data recovery',e);
-        return JSON.parse(JSON.stringify(shopSeedData));
-      }
-    })();
-
-    // 2026-09-11 商品資料更新：刪除指定品項、改名
+    let shopData = (()=>{try{const s=appStorageGet('tokyo-shop-v2');return s?JSON.parse(s):JSON.parse(JSON.stringify(shopSeedData));}catch(e){return JSON.parse(JSON.stringify(shopSeedData));}})();
+    ['藥品','伴手禮','美食','超商','其他','購物清單'].forEach(k=>{if(!Array.isArray(shopData[k]))shopData[k]=[];});
+    // 2026-09-11 商品資料更新：刪除指定品項、改名並套用上傳圖片
     const removedShopNames=new Set(['LOXONIN S PLUS','BUFFERIN PREMIUM','BUFFERIN PREMIUM DX','安美露 YOKO YOKO','安美露YOYO']);
-    shopData['藥品']=shopData['藥品'].filter(x=>x && !removedShopNames.has(x.name));
+    shopData['藥品']=shopData['藥品'].filter(x=>!removedShopNames.has(x.name));
     const shopRenameMap={'PABRON GOLD A':'大正百保能','PEBRON':'大正百保能','Una Kowa Cool':'護那酷止癢藥水','UNA KOWA COO':'護那酷止癢藥水','TOKYO TULIP ROSE':'鬱金香餅乾','Tokyo Tulip Rose':'鬱金香餅乾','YOKU MOKU Cigare':'Y雪茄餅乾','YOKU MOKU':'Y雪茄餅乾'};
-    ['藥品','伴手禮'].forEach(cat=>shopData[cat].forEach(x=>{if(x && shopRenameMap[x.name])x.name=shopRenameMap[x.name];}));
-
-    function saveShop(){
-      try{localStorage.setItem('tokyo-shop-v2',JSON.stringify(shopData));}
-      catch(e){console.warn('shop save failed',e);}
-    }
+    ['藥品','伴手禮'].forEach(cat=>shopData[cat].forEach(x=>{if(shopRenameMap[x.name])x.name=shopRenameMap[x.name];}));
+    // 舊版本使用者自動補入新版預設品項，不覆蓋原本資料
+    ['藥品','伴手禮','美食','超商','其他'].forEach(cat=>{
+      shopSeedData[cat].forEach(seed=>{if(!shopData[cat].some(x=>x.name===seed.name))shopData[cat].push({...seed});});
+      shopData[cat].forEach(x=>{if(x.image===undefined)x.image='';if(x.location===undefined)x.location='';if(x.wiki===undefined)x.wiki='';});
+    });
+    (shopData['購物清單']||[]).forEach(x=>{if(!x.category)x.category='其他'});
+    function saveShop(){appStorageSet('tokyo-shop-v2',JSON.stringify(shopData));}
     let shoppingListFilter='全部';
     function setShoppingListFilter(cat){shoppingListFilter=cat;renderShopContent();}
 
@@ -1891,26 +1851,11 @@
         const isActive=b.dataset.shopTab===tab;
         b.className=`shop-tab ${isActive?'active bg-skyBlue text-white border-skyBlue':'bg-card text-wood border-sand'} w-10 h-10 shrink-0 rounded-xl text-sm border btn-press`;
       });
-      }
-
-    function ensureShopDataReady(){
-      try{
-        shopData=sanitizeShopData(shopData);
-        const count=['藥品','伴手禮','美食','超商','其他']
-          .reduce((n,cat)=>n+(Array.isArray(shopData?.[cat])?shopData[cat].length:0),0);
-        if(count===0)shopData=JSON.parse(JSON.stringify(shopSeedData));
-      }catch(e){
-        console.warn('ensureShopDataReady',e);
-        shopData=JSON.parse(JSON.stringify(shopSeedData));
-      }
-      return shopData;
+      renderShopContent();
     }
 
     function renderShopContent() {
-      const area=document.getElementById('shop-content-area');
-      if(!area)return;
-      ensureShopDataReady();
-      area.innerHTML='';
+      const area=document.getElementById('shop-content-area');area.innerHTML='';
       if(activeShopTab==='購物清單'){
         const filters=document.createElement('div');filters.className='space-y-2';
         filters.innerHTML=`<div class="text-[10px] font-bold text-gray-400">購物清單分類</div><div class="flex gap-2 overflow-x-auto no-scrollbar">${['全部','藥品','伴手禮','美食','超商','其他'].map(c=>`<button onclick="setShoppingListFilter('${c}')" class="px-3 py-1.5 rounded-xl text-[10px] font-bold border ${shoppingListFilter===c?'bg-skyBlue text-white border-skyBlue':'bg-card text-wood border-sand'}">${c}</button>`).join('')}</div>`;area.appendChild(filters);
@@ -1919,8 +1864,6 @@
         items.forEach(({item,idx})=>{const div=document.createElement('div');div.className='flex justify-between items-center p-3 bg-card rounded-2xl border border-sand shadow-soft text-xs';div.innerHTML=`<label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" ${item.checked?'checked':''} onchange="shopData['購物清單'][${idx}].checked=this.checked;saveShop();renderShopContent()" class="accent-skyBlue w-4 h-4 rounded"><span class="${item.checked?'line-through text-gray-400':'text-wood font-bold'}">${item.name}</span><span class="text-[9px] px-1.5 py-0.5 rounded bg-paper border border-sand">${item.category||'其他'}</span></label><button onclick="shopData['購物清單'].splice(${idx},1);saveShop();renderShopContent();" class="text-gray-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>`;area.appendChild(div);});
       } else {
         (shopData[activeShopTab]||[]).forEach((item,idx)=>{
-          try{
-          if(!item || !String(item.name||'').trim())return;
           const id=`shop-detail-${activeShopTab}-${idx}`.replace(/[^a-zA-Z0-9_-]/g,'_');
           const card=document.createElement('div');card.className='p-3 bg-card rounded-2xl border border-sand shadow-soft text-xs';
           const loc=item.location?`<div class="text-[10px] text-skyBlue"><i class="fa-solid fa-store mr-1"></i>${item.location}</div>`:'';
@@ -1950,37 +1893,12 @@
               setTimeout(()=>loadShopCardPhoto(id,item.name,item.wiki||item.name),20);
             }
           });
-          const addBtn=card.querySelector('.add-shop-btn');
-          if(addBtn)addBtn.addEventListener('click',(e)=>{e.stopPropagation();addToShoppingList(item.name,activeShopTab);});
+          card.querySelector('.add-shop-btn').addEventListener('click',(e)=>{e.stopPropagation();addToShoppingList(item.name,activeShopTab);});
           area.appendChild(card);
-          }catch(e){
-            console.warn('shop card render skipped',activeShopTab,idx,e);
-          }
         });
-        if(!area.children.length){
-          area.innerHTML='<div class="p-4 rounded-2xl bg-card border border-sand text-center"><div class="text-xs text-gray-400 mb-2">商品資料暫時無法顯示</div><button type="button" onclick="repairShopData()" class="px-3 py-2 rounded-xl bg-skyLight text-skyBlue font-bold text-xs">恢復預設必買推薦</button></div>';
-        }
         hydrateMediaImages(area);
       }
     }
-    function repairShopData(){
-      shopData=JSON.parse(JSON.stringify(shopSeedData));
-      saveShop();
-      renderShopContent();
-    }
-
-    function safeRenderShopContent(){
-      try{
-        ensureShopDataReady();
-        renderShopContent();
-      }catch(e){
-        console.error('shop render recovery',e);
-        shopData=JSON.parse(JSON.stringify(shopSeedData));
-        try{saveShop()}catch(_){}
-        try{renderShopContent()}catch(err){console.error('shop hard failure',err)}
-      }
-    }
-
     function getShopFallbackImageUrl(name){
       const q=encodeURIComponent((name||'Tokyo Japan product')+' 商品 包裝');
       return `https://tse1.mm.bing.net/th?q=${q}&w=900&h=600&c=7&rs=1&p=0`;
@@ -2010,8 +1928,8 @@
     renderShopContent();
 
     // ---------------- 日誌 (圖片顯示在文字下方) ----------------
-    let journals = (()=>{try{const s=localStorage.getItem('tokyo-journals-v2');return s?JSON.parse(s):[{ id: 1, title: '初抵東京淺草夜間散策', date: '2026/10/25 18:30', text: '終於來到東京淺草！夜間雷門點燈後非常古色古香，抹茶冰淇淋極美味！⛩️', img: '' }]}catch(e){return[]}})();
-    function saveJournals(){localStorage.setItem('tokyo-journals-v2',JSON.stringify(journals));}
+    let journals = (()=>{try{const s=appStorageGet('tokyo-journals-v2');return s?JSON.parse(s):[{ id: 1, title: '初抵東京淺草夜間散策', date: '2026/10/25 18:30', text: '終於來到東京淺草！夜間雷門點燈後非常古色古香，抹茶冰淇淋極美味！⛩️', img: '' }]}catch(e){return[]}})();
+    function saveJournals(){appStorageSet('tokyo-journals-v2',JSON.stringify(journals));}
 
     function openJournalSettings(){
       document.getElementById('modal-title').innerHTML='<span><i class="fa-solid fa-gear text-skyBlue mr-2"></i>日誌設定</span>';
@@ -2070,6 +1988,7 @@
       });
       hydrateMediaImages(feed);
     }
+    renderJournals();
 
     // ---------------- 準備頁籤 ----------------
     let activePlanCategory = '必備';
@@ -2083,28 +2002,14 @@
     };
     function normalizePlanData(raw){
       const out={};
-      let validTotal=0;
       Object.keys(defaultPlanData).forEach(cat=>{
         const src=Array.isArray(raw?.[cat])?raw[cat]:defaultPlanData[cat];
-        out[cat]=src
-          .map(v=>typeof v==='string'?{text:v,checked:false}:{text:String(v?.text||v?.name||''),checked:!!v?.checked})
-          .filter(v=>v.text);
-        if(cat!=='其他')validTotal+=out[cat].length;
+        out[cat]=src.map(v=>typeof v==='string'?{text:v,checked:false}:{text:String(v?.text||v?.name||''),checked:!!v?.checked}).filter(v=>v.text);
       });
-
-      // 若舊版資料意外變成全部空白，恢復完整預設清單。
-      if(validTotal===0){
-        Object.keys(defaultPlanData).forEach(cat=>{
-          out[cat]=defaultPlanData[cat].map(text=>({text,checked:false}));
-        });
-      }
       return out;
     }
-    let planData=(()=>{try{const s=localStorage.getItem('tokyo-plan-v2');return normalizePlanData(s?JSON.parse(s):defaultPlanData)}catch(e){return normalizePlanData(defaultPlanData)}})();
-    function savePlanData(){
-      try{localStorage.setItem('tokyo-plan-v2',JSON.stringify(planData));}
-      catch(e){console.warn('plan save failed',e);}
-    }
+    let planData=(()=>{try{const s=appStorageGet('tokyo-plan-v2');return normalizePlanData(s?JSON.parse(s):defaultPlanData)}catch(e){return normalizePlanData(defaultPlanData)}})();
+    function savePlanData(){appStorageSet('tokyo-plan-v2',JSON.stringify(planData));}
 
     function switchPlanCategory(cat){
       activePlanCategory=cat;
@@ -2114,36 +2019,20 @@
           ? 'plan-icon-btn active flex flex-col items-center p-2 rounded-xl text-skyBlue bg-skyLight border border-skyBlue btn-press min-w-[55px]'
           : 'plan-icon-btn flex flex-col items-center p-2 rounded-xl text-gray-400 bg-card border border-transparent btn-press min-w-[55px]';
       });
-      }
-
-    function ensurePlanDataReady(){
-      try{
-        planData=normalizePlanData(planData);
-        const nonEmpty=['必備','換洗衣物','隨身用品','3C設備','待辦事項']
-          .reduce((n,cat)=>n+(Array.isArray(planData?.[cat])?planData[cat].length:0),0);
-        if(nonEmpty===0)planData=normalizePlanData(defaultPlanData);
-      }catch(e){
-        console.warn('ensurePlanDataReady',e);
-        planData=normalizePlanData(defaultPlanData);
-      }
-      return planData;
+      renderPlanChecklist();
     }
 
     function renderPlanChecklist(){
-      ensurePlanDataReady();
-      const titleEl=document.getElementById('plan-cat-title');
-      const countEl=document.getElementById('plan-cat-count');
-      const container=document.getElementById('plan-checklist-items');
-      if(!titleEl || !countEl || !container)return;
-      titleEl.innerHTML=`<i class="fa-solid fa-square-check text-skyBlue mr-1.5"></i>${activePlanCategory}用品`;
+      document.getElementById('plan-cat-title').innerHTML=`<i class="fa-solid fa-square-check text-skyBlue mr-1.5"></i>${activePlanCategory}用品`;
       const items=planData[activePlanCategory]||[];
       const doneCount=items.filter(item=>item.checked).length;
       const percent=items.length?Math.round(doneCount/items.length*100):0;
-      countEl.innerText=`${items.length} 項｜已完成 ${doneCount} 項`;
+      document.getElementById('plan-cat-count').innerText=`${items.length} 項｜已完成 ${doneCount} 項`;
       const progressText=document.getElementById('plan-progress-text');
       if(progressText)progressText.innerText=`${doneCount} / ${items.length}（${percent}%）`;
       const progressFill=document.getElementById('plan-progress-fill');
       if(progressFill)progressFill.style.width=percent+'%';
+      const container=document.getElementById('plan-checklist-items');
       container.innerHTML='';
       items.forEach((item,idx)=>{
         const div=document.createElement('div');
@@ -2158,24 +2047,6 @@
       });
     }
     renderPlanChecklist();
-
-    function repairPlanData(){
-      planData=normalizePlanData(defaultPlanData);
-      savePlanData();
-      renderPlanChecklist();
-    }
-
-    function safeRenderPlanChecklist(){
-      try{
-        ensurePlanDataReady();
-        renderPlanChecklist();
-      }catch(e){
-        console.error('plan render recovery',e);
-        planData=normalizePlanData(defaultPlanData);
-        try{savePlanData()}catch(_){}
-        try{renderPlanChecklist()}catch(err){console.error('plan hard failure',err)}
-      }
-    }
 
     // ---------------- 工具計算器 ----------------
     function calcToolExchange() {
@@ -2215,29 +2086,14 @@
       const stamp=new Date(data._savedAt||Date.now());
       document.getElementById('weather-updated').innerText=`${fromCache?'離線顯示上次資料｜':''}更新 ${stamp.toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}｜Open-Meteo`;
     }
-    async function fetchWithTimeout(url,options={},timeoutMs=8000){
-      const controller=new AbortController();
-      const timer=setTimeout(()=>controller.abort(),timeoutMs);
-      try{
-        return await fetch(url,{...options,signal:controller.signal});
-      }finally{
-        clearTimeout(timer);
-      }
-    }
-
     async function updateWeatherDisplay(force=false){
-      const city=document.getElementById('weather-city')?.value||'東京', loc=weatherLocations[city], key='tokyo-weather-'+city, cached=localStorage.getItem(key);
-      let renderedCached=false;
-      if(cached&&!force){try{renderWeather(city,JSON.parse(cached),true);renderedCached=true}catch(e){}}
-      const tempEl=document.getElementById('weather-temp');
-      const condEl=document.getElementById('weather-condition');
-      if(!renderedCached && tempEl)tempEl.innerText='--°C';
-      if(!renderedCached && condEl)condEl.innerText='更新中';
+      const city=document.getElementById('weather-city')?.value||'東京', loc=weatherLocations[city], key='tokyo-weather-'+city, cached=appStorageGet(key);
+      if(cached&&!force){try{renderWeather(city,JSON.parse(cached),true)}catch(e){}}
       document.getElementById('weather-detail').innerText='正在取得即時天氣資料…';
       try{
         const url=`https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=precipitation_probability&forecast_days=1&timezone=Asia%2FTokyo`;
-        const res=await fetchWithTimeout(url,{cache:'no-store'},8000);if(!res.ok)throw new Error('weather');
-        const data=await res.json();data._savedAt=Date.now();localStorage.setItem(key,JSON.stringify(data));renderWeather(city,data,false);
+        const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error('weather');
+        const data=await res.json();data._savedAt=Date.now();appStorageSet(key,JSON.stringify(data));renderWeather(city,data,false);
       }catch(e){
         if(cached){try{renderWeather(city,JSON.parse(cached),true)}catch(_){}}
         else{document.getElementById('weather-temp').innerText='--°C';document.getElementById('weather-condition').innerText='離線';document.getElementById('weather-detail').innerText='目前無網路，尚無上次天氣資料';document.getElementById('weather-updated').innerText='連線後會自動更新｜Open-Meteo'}
@@ -2248,52 +2104,91 @@
     // ---------------- 頂部地圖、優惠券、備選景點 ----------------
     
     // ===== 航程住宿 PDF 憑證（IndexedDB，本裝置保存） =====
-    const BOOKING_PDF_DB = 'tokyo-booking-pdfs-v1';
+    const LEGACY_BOOKING_PDF_DB = 'tokyo-booking-pdfs-v1';
+    const BOOKING_PDF_DB = 'tokyo-v14-booking-pdfs-v2';
     const BOOKING_PDF_STORE = 'pdfs';
 
     function openBookingPdfDB(){
       return new Promise((resolve,reject)=>{
-        if(!('indexedDB' in window)){
-          reject(new Error('IndexedDB unavailable'));
-          return;
-        }
-
-        // 先不指定版本，直接開啟裝置上既有的最新版資料庫。
-        // 這可避免舊版 APP 曾建立較高 DB version 時出現 VersionError。
-        let req;
-        try{ req=indexedDB.open(BOOKING_PDF_DB); }
-        catch(e){ reject(e); return; }
-
-        req.onsuccess=()=>{
+        if(!('indexedDB' in window)){reject(new Error('IndexedDB unavailable'));return;}
+        const req=indexedDB.open(BOOKING_PDF_DB,1);
+        req.onupgradeneeded=()=>{
           const db=req.result;
-          if(db.objectStoreNames.contains(BOOKING_PDF_STORE)){
-            resolve(db);
-            return;
+          if(!db.objectStoreNames.contains(BOOKING_PDF_STORE)){
+            const store=db.createObjectStore(BOOKING_PDF_STORE,{keyPath:'id',autoIncrement:true});
+            store.createIndex('createdAt','createdAt');
           }
-
-          // 若舊資料庫存在但缺少 pdfs store，再安全升一版建立 store。
-          const nextVersion=(db.version||1)+1;
-          db.close();
-
-          let upgradeReq;
-          try{ upgradeReq=indexedDB.open(BOOKING_PDF_DB,nextVersion); }
-          catch(e){ reject(e); return; }
-
-          upgradeReq.onupgradeneeded=()=>{
-            const upgradeDb=upgradeReq.result;
-            if(!upgradeDb.objectStoreNames.contains(BOOKING_PDF_STORE)){
-              const store=upgradeDb.createObjectStore(BOOKING_PDF_STORE,{keyPath:'id',autoIncrement:true});
-              store.createIndex('createdAt','createdAt');
-            }
-          };
-          upgradeReq.onsuccess=()=>resolve(upgradeReq.result);
-          upgradeReq.onerror=()=>reject(upgradeReq.error||new Error('IndexedDB upgrade failed'));
-          upgradeReq.onblocked=()=>reject(new Error('IndexedDB upgrade blocked'));
         };
-
-        req.onerror=()=>reject(req.error||new Error('IndexedDB open failed'));
-        req.onblocked=()=>reject(new Error('IndexedDB open blocked'));
+        req.onsuccess=()=>resolve(req.result);
+        req.onerror=()=>reject(req.error||new Error('Credential DB open failed'));
+        req.onblocked=()=>reject(new Error('Credential DB blocked'));
       });
+    }
+
+    async function migrateLegacyBookingDb(){
+      try{
+        const target=await openBookingPdfDB();
+        const existing=await new Promise((resolve,reject)=>{
+          const r=target.transaction(BOOKING_PDF_STORE,'readonly').objectStore(BOOKING_PDF_STORE).count();
+          r.onsuccess=()=>resolve(r.result||0);r.onerror=()=>reject(r.error);
+        });
+        target.close();
+        if(existing>0)return;
+
+        const legacy=await new Promise((resolve,reject)=>{
+          const r=indexedDB.open(LEGACY_BOOKING_PDF_DB);
+          r.onsuccess=()=>resolve(r.result);
+          r.onerror=()=>reject(r.error);
+          r.onupgradeneeded=()=>{};
+        });
+        if(!legacy.objectStoreNames.contains(BOOKING_PDF_STORE)){legacy.close();return;}
+        const items=await new Promise((resolve,reject)=>{
+          const r=legacy.transaction(BOOKING_PDF_STORE,'readonly').objectStore(BOOKING_PDF_STORE).getAll();
+          r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);
+        });
+        legacy.close();
+        if(!items.length)return;
+
+        const db=await openBookingPdfDB();
+        await new Promise((resolve,reject)=>{
+          const tx=db.transaction(BOOKING_PDF_STORE,'readwrite'),store=tx.objectStore(BOOKING_PDF_STORE);
+          items.forEach(x=>{
+            const copy={...x}; delete copy.id; store.add(copy);
+          });
+          tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+        });
+        db.close();
+      }catch(e){console.warn('legacy credential DB migration',e);}
+    }
+
+    async function requestPersistentLocalStorage(){
+      try{
+        if(navigator.storage?.persist){
+          const granted=await navigator.storage.persist();
+          return !!granted;
+        }
+      }catch(e){console.warn('persistent storage request',e);}
+      return false;
+    }
+
+    async function updateBookingStorageStatus(){
+      const el=document.getElementById('booking-storage-status');
+      if(!el)return;
+      try{
+        const db=await openBookingPdfDB();db.close();
+        let msg='本機儲存可用｜資料只存在這個瀏覽器／裝置';
+        if(navigator.storage?.estimate){
+          const est=await navigator.storage.estimate();
+          if(est?.usage!=null && est?.quota){
+            msg+=`｜已用 ${(est.usage/1024/1024).toFixed(1)} MB`;
+          }
+        }
+        el.className='text-[9px] text-emerald-600 mt-2';
+        el.textContent=msg;
+      }catch(e){
+        el.className='text-[9px] text-red-500 mt-2';
+        el.textContent='本機儲存目前無法使用，請關閉無痕模式或重新整理 APP。';
+      }
     }
 
     async function saveBookingPdf(file){
@@ -2377,53 +2272,46 @@
           </div>`;
         }).join('');
       }catch(e){
-        console.warn('旅遊憑證 IndexedDB 讀取失敗',e);
-        box.innerHTML=`
-          <div class="text-center py-2">
-            <div class="text-[9px] text-amber-600">暫時無法讀取本機旅遊憑證</div>
-            <button type="button" onclick="renderBookingPdfs()" class="mt-2 px-3 py-1.5 rounded-lg bg-skyLight text-skyBlue text-[9px] font-bold">重新讀取</button>
-          </div>`;
+        console.warn('credential render failed',e);
+        box.innerHTML='<div class="text-[9px] text-red-400 text-center py-2">本機憑證讀取失敗，請重新整理 APP 後再試。</div>';
       }
     }
 
-    function initBookingPdfUpload(){
+    async function initBookingPdfUpload(){
       const input=document.getElementById('booking-pdf-input');
       if(!input || input.dataset.bound==='1') return;
       input.dataset.bound='1';
+
+      await migrateLegacyBookingDb();
+      await updateBookingStorageStatus();
+
       input.addEventListener('change', async ()=>{
         const files=[...input.files].filter(f=>f.type==='application/pdf'||f.type.startsWith('image/')||/\.(pdf|jpg|jpeg|png|webp|gif|heic|heif)$/i.test(f.name));
         if(!files.length) return;
         for(const file of files){
           try{ await saveBookingPdf(file); }
-          catch(e){ console.warn('credential upload',e); alert('憑證上傳失敗：'+file.name+'\n請重新整理 APP 後再試。'); }
+          catch(e){
+            console.warn('credential save failed',e);
+            alert('憑證無法儲存：'+file.name+'\n資料沒有上傳雲端。請重新整理 APP 後再試。');
+          }
         }
         input.value='';
-        renderBookingPdfs();
+        await renderBookingPdfs();
+        await updateBookingStorageStatus();
       });
-      renderBookingPdfs();
+
+      await renderBookingPdfs();
     }
 
-    document.addEventListener('DOMContentLoaded',()=>{
-      // 每個模組獨立初始化：某一頁失敗，不會再讓後面的頁面一起消失。
-      try{syncStickyHeaderHeight()}catch(e){console.warn('sticky init',e)}
-      try{renderDatePicker()}catch(e){console.warn('date picker init',e)}
-      try{renderTimeline(0)}catch(e){console.warn('timeline init',e)}
-      try{renderExpenses()}catch(e){console.warn('expense init',e)}
-      try{safeRenderShopContent()}catch(e){console.warn('shop init',e)}
-      try{renderJournals()}catch(e){console.warn('journal init',e)}
-      try{safeRenderPlanChecklist()}catch(e){console.warn('plan init',e)}
-      try{initBookingPdfUpload()}catch(e){console.warn('booking init',e)}
-
-      updateWeatherDisplay(false).catch(e=>console.warn('weather init',e));
-      setTimeout(()=>{
-        migrateLegacyMediaToIndexedDB()
-          .then(()=>{
-            try{safeRenderShopContent()}catch(_){}
-            try{renderJournals()}catch(_){}
-            try{safeRenderPlanChecklist()}catch(_){}
-          })
-          .catch(e=>console.warn('media migration',e));
-      },400);
+    document.addEventListener('DOMContentLoaded',async ()=>{
+      try{await requestPersistentLocalStorage();}catch(e){}
+      try{await migrateLegacyMediaDB();}catch(e){}
+      try{await initBookingPdfUpload();}catch(e){
+        console.warn('credential init failed',e);
+        updateBookingStorageStatus();
+      }
+      updateWeatherDisplay(false);
+      setTimeout(()=>migrateLegacyMediaToIndexedDB(),400);
     });
 
     const coupons = [
@@ -2805,15 +2693,25 @@
     function isTokyoAppKey(k){return APP_EXACT_KEYS.includes(k)||k.startsWith('note-')||k.startsWith('tokyo-weather-');}
     function collectAppLocalStorage(){
       const out={};
-      for(let i=0;i<localStorage.length;i++){
-        const k=localStorage.key(i);
-        if(isTokyoAppKey(k))out[k]=localStorage.getItem(k);
+      for(let i=0;i<rawLocalStorage.length;i++){
+        const rawKey=rawLocalStorage.key(i);
+        if(!rawKey || !rawKey.startsWith(APP_STORAGE_PREFIX))continue;
+        const k=rawKey.slice(APP_STORAGE_PREFIX.length);
+        if(isTokyoAppKey(k))out[k]=rawLocalStorage.getItem(rawKey);
       }
       return out;
     }
     function restoreAppLocalStorage(obj){
-      Object.keys(localStorage).filter(isTokyoAppKey).forEach(k=>localStorage.removeItem(k));
-      Object.entries(obj||{}).forEach(([k,v])=>{if(isTokyoAppKey(k))localStorage.setItem(k,String(v));});
+      const remove=[];
+      for(let i=0;i<rawLocalStorage.length;i++){
+        const rawKey=rawLocalStorage.key(i);
+        if(rawKey && rawKey.startsWith(APP_STORAGE_PREFIX)){
+          const k=rawKey.slice(APP_STORAGE_PREFIX.length);
+          if(isTokyoAppKey(k))remove.push(rawKey);
+        }
+      }
+      remove.forEach(k=>rawLocalStorage.removeItem(k));
+      Object.entries(obj||{}).forEach(([k,v])=>{if(isTokyoAppKey(k))appStorageSet(k,String(v));});
     }
     async function exportMediaBackup(){
       const items=await getAllMediaRecords();
@@ -2899,8 +2797,16 @@
       const ok=confirm('確定要重製這支手機的 APP 內容嗎？\n\n將清除本裝置自行編輯的行程、記帳、匯率、預算、必買推薦／購物清單、日誌、準備清單與個人筆記，並恢復目前 APP 的最新初始內容。\n\n此操作無法復原。');
       if(!ok)return;
       const exactKeys=['tokyo-days-v2','tokyo-expenses-v2','tokyo-rate-v2','tokyo-budget-v2','tokyo-shop-v2','tokyo-journals-v2','tokyo-plan-v2'];
-      exactKeys.forEach(k=>localStorage.removeItem(k));
-      Object.keys(localStorage).filter(k=>k.startsWith('note-')||k.startsWith('tokyo-weather-')).forEach(k=>localStorage.removeItem(k));
+      exactKeys.forEach(k=>appStorageRemove(k));
+      const scopedDynamic=[];
+      for(let i=0;i<rawLocalStorage.length;i++){
+        const rawKey=rawLocalStorage.key(i);
+        if(rawKey && rawKey.startsWith(APP_STORAGE_PREFIX)){
+          const k=rawKey.slice(APP_STORAGE_PREFIX.length);
+          if(k.startsWith('note-')||k.startsWith('tokyo-weather-'))scopedDynamic.push(rawKey);
+        }
+      }
+      scopedDynamic.forEach(k=>rawLocalStorage.removeItem(k));
       try{await clearMediaStore();}catch(e){}
       alert('此裝置內容已重製，將重新載入最新初始資料。旅遊憑證仍保留。');
       location.reload();
