@@ -333,7 +333,7 @@
         ⏳ 距離出發還有 <span id="splash-countdown" class="mx-1">--</span> 天
       </div>
       <button onclick="startApp()" class="w-full bg-white/95 hover:bg-white text-wood font-bold py-3.5 px-8 rounded-full shadow-glow border border-white text-sm tracking-widest btn-press flex items-center justify-center gap-2 mx-auto backdrop-blur-md">
-        <span>開始YAYA旅程</span><i class="fa-solid fa-arrow-right text-xs text-torii"></i>
+        <span>開始旅程</span><i class="fa-solid fa-arrow-right text-xs text-torii"></i>
       </button>
     </div>
   </div>
@@ -486,7 +486,7 @@
       <div id="drag-edge-right" class="drag-edge"><i class="fa-solid fa-chevron-right"></i></div>
     </section>
 
-   <!-- 3. 記帳 (Expense) -->
+    <!-- 3. 記帳 (Expense) -->
     <section id="page-expense" class="page-content space-y-4">
       <div class="bg-skyBlue text-white rounded-2xl p-5 shadow-soft border border-skyBlue/20 relative space-y-4">
         <button type="button" onclick="openExpenseSettings()" class="absolute top-4 right-4 text-white hover:opacity-80 p-1 btn-press" title="記帳設定" aria-label="記帳設定">
@@ -497,7 +497,7 @@
           <div class="min-w-0">
             <div id="expense-total-label" class="text-xs opacity-80">總累計支出</div>
             <div class="text-2xl keep-text-2xl font-bold tracking-tight mt-2">NT$ <span id="total-twd">0</span></div>
-            <div class="text-xs opacity-90 mt-2">日幣總額: ¥<span id="total-jpy">0</span><span class="expense-rate-fallback">（預設匯率 <span id="rate-display-fallback">0.22</span>）</span></div>
+            <div class="text-xs opacity-90 mt-2">日幣總額: ¥<span id="total-jpy">0</span></div>
           </div>
           <div class="text-right min-w-0">
             <div id="expense-budget-label" class="text-xs opacity-80">旅遊總預算</div>
@@ -514,9 +514,8 @@
           </div>
         </div>
 
-        <!-- 分類 Icon + 匯率同列；窄螢幕時匯率自動移至「日幣總額」後方 -->
-        <div class="expense-filter-row pt-3 border-t border-white/20">
-          <div class="expense-filter-icons no-scrollbar text-xs">
+        <!-- 總計角落純 Icon 分類選單 ($ / 🍴 / 🚃 / 🛍️ / 🎟️ / 🎁 / 🪙) -->
+        <div class="flex gap-1.5 pt-3 border-t border-white/20 overflow-x-auto no-scrollbar text-xs">
           <button onclick="filterExpenseCategory('全部')" data-expense-cat="全部" title="全部" class="expense-filter-btn active px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/40 font-bold btn-press">
             <i class="fa-solid fa-dollar-sign"></i>
           </button>
@@ -538,9 +537,8 @@
           <button onclick="filterExpenseCategory('其他')" data-expense-cat="其他" title="其他" class="expense-filter-btn px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/40 btn-press">
             <i class="fa-solid fa-coins"></i>
           </button>
-          </div>
-          <div class="expense-rate-inline">預設匯率 <span id="rate-display-inline">0.22</span></div>
         </div>
+        <div class="text-[10px] opacity-75 text-right -mt-1">預設匯率 <span id="rate-display">0.22</span></div>
       </div>
 
       <!-- OCR 文字掃描記帳 -->
