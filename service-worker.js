@@ -1,4 +1,4 @@
-const CACHE_NAME='tokyo-travel-20260916-v14-5';
+const CACHE_NAME='tokyo-travel-20260916-v14-6';
 const STATIC_ASSETS=[
   "./cover.jpg",
   "./icon-192.png",
