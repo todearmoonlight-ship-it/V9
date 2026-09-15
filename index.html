@@ -495,7 +495,7 @@
 
         <div class="expense-summary-grid pr-8">
           <div class="min-w-0">
-            <div id="expense-total-label" class="text-xs opacity-80">總累計支出 (預設匯率 <span id="rate-display">0.22</span>)</div>
+            <div id="expense-total-label" class="text-xs opacity-80">總累計支出</div>
             <div class="text-2xl keep-text-2xl font-bold tracking-tight mt-2">NT$ <span id="total-twd">0</span></div>
             <div class="text-xs opacity-90 mt-2">日幣總額: ¥<span id="total-jpy">0</span></div>
           </div>
@@ -538,6 +538,7 @@
             <i class="fa-solid fa-coins"></i>
           </button>
         </div>
+        <div class="text-[10px] opacity-75 text-right -mt-1">預設匯率 <span id="rate-display">0.22</span></div>
       </div>
 
       <!-- OCR 文字掃描記帳 -->
@@ -1053,6 +1054,35 @@
       return groups.length ? all.filter(x=>!x.group || x.group===currentGroup) : all;
     }
 
+    function escapeScheduleHtml(value){
+      return String(value??'')
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;')
+        .replace(/'/g,'&#39;');
+    }
+
+    function linkifyScheduleText(value){
+      const raw=String(value??'');
+      const urlRe=/(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi;
+      let out='',last=0,match;
+      while((match=urlRe.exec(raw))!==null){
+        out+=escapeScheduleHtml(raw.slice(last,match.index));
+        let shown=match[0];
+        let trailing='';
+        while(/[，。；：、）)\]}>！!？?]$/.test(shown)){
+          trailing=shown.slice(-1)+trailing;
+          shown=shown.slice(0,-1);
+        }
+        const href=/^www\./i.test(shown)?'https://'+shown:shown;
+        out+=`<a href="${escapeScheduleHtml(href)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-skyBlue underline font-bold break-all"><i class="fa-solid fa-link text-[9px] mr-1"></i>${escapeScheduleHtml(shown)}</a>${escapeScheduleHtml(trailing)}`;
+        last=match.index+match[0].length;
+      }
+      out+=escapeScheduleHtml(raw.slice(last));
+      return out.replace(/\n/g,'<br>');
+    }
+
     function renderTimeline(index=currentDayIndex){
       currentDayIndex=index; renderDatePicker(); renderGroupPicker();
       const container=document.getElementById('timeline-container');
@@ -1077,9 +1107,9 @@
             </div>
             <div id="detail-${item.id}" class="accordion-content hidden pt-3 border-t border-dashed space-y-1.5 text-xs">
               ${getScheduleImage(item)?mediaImgTag(getScheduleImage(item),'recommend-img',item.title+' 照片'):(item.wiki?`<img class="recommend-img schedule-wiki-img" data-wiki="${item.wiki}" alt="${item.title} 照片">`:'')}
-              ${item.intro?`<p class="text-gray-600 leading-relaxed"><i class="fa-solid fa-circle-info text-skyBlue mr-1"></i>${item.intro}</p>`:''}
+              ${item.intro?`<p class="text-gray-600 leading-relaxed"><i class="fa-solid fa-circle-info text-skyBlue mr-1"></i>${linkifyScheduleText(item.intro)}</p>`:''}
               <div><span class="font-bold text-wood"><i class="fa-solid fa-map-location-dot text-torii mr-1"></i>Google Map：</span><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.address||item.title)}" target="_blank" class="text-skyBlue underline font-bold">點擊開啟地圖</a></div>
-              ${item.note?`<div><span class="font-bold text-wood"><i class="fa-solid fa-pen-to-square text-amber-500 mr-1"></i>備註：</span><span class="text-gray-600">${item.note}</span></div>`:''}
+              ${item.note?`<div><span class="font-bold text-wood"><i class="fa-solid fa-pen-to-square text-amber-500 mr-1"></i>備註：</span><span class="text-gray-600">${linkifyScheduleText(item.note)}</span></div>`:''}
               <div class="pt-2">
                 <button type="button" onclick="event.stopPropagation();toggleElement('personal-note-${item.id}')" class="w-full flex items-center justify-between p-2.5 rounded-xl bg-paper border border-sand text-wood font-bold btn-press">
                   <span><i class="fa-solid fa-sticky-note mr-1"></i>個人筆記</span>
@@ -1275,36 +1305,122 @@
         <div class="text-[10px] text-gray-400 bg-paper rounded-xl p-2.5">目前匯率：1 日圓 ≈ NT$ <b>${currentExchangeRate}</b><br>目前旅遊總預算：NT$ <b>${Math.round(travelBudget).toLocaleString()}</b><br>匯出檔案包含日期、項目、類別、付款方式、原幣金額與台幣估算；不嵌入收據照片。</div>`;
       document.getElementById('global-modal').classList.remove('hidden');
     }
-    function filterExpenseCategory(cat){currentCategoryFilter=cat;document.getElementById('expense-list-title').innerText=`支出明細 (${cat})`;document.querySelectorAll('.expense-filter-btn').forEach(b=>b.classList.toggle('active',b.dataset.expenseCat===cat));renderExpenses();}
+    function filterExpenseCategory(cat){
+      currentCategoryFilter=cat;
+      document.getElementById('expense-list-title').innerText=`支出明細 (${cat})`;
+      document.querySelectorAll('.expense-filter-btn').forEach(b=>b.classList.toggle('active',b.dataset.expenseCat===cat));
+      renderExpenses();
+    }
+
+    function expenseDateInfo(item){
+      const raw=String(item?.time||'').trim();
+      const m=raw.match(/(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
+      if(m){
+        const y=Number(m[1]),mo=Number(m[2]),d=Number(m[3]);
+        const key=`${y}/${String(mo).padStart(2,'0')}/${String(d).padStart(2,'0')}`;
+        const dt=new Date(y,mo-1,d);
+        const w=['日','一','二','三','四','五','六'][dt.getDay()];
+        return {key,label:`${key} (${w})`};
+      }
+      const dt=new Date(raw);
+      if(!Number.isNaN(dt.getTime())){
+        const y=dt.getFullYear(),mo=dt.getMonth()+1,d=dt.getDate();
+        const key=`${y}/${String(mo).padStart(2,'0')}/${String(d).padStart(2,'0')}`;
+        const w=['日','一','二','三','四','五','六'][dt.getDay()];
+        return {key,label:`${key} (${w})`};
+      }
+      return {key:'未指定日期',label:'未指定日期'};
+    }
+
+    function expenseTimeOnly(item){
+      const raw=String(item?.time||'').trim();
+      const m=raw.match(/(?:\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2})\s*(.*)$/);
+      return (m?.[1]||raw||'').trim();
+    }
+
+    function toggleExpenseDateGroup(key){
+      const body=[...document.querySelectorAll('[data-expense-day-body]')].find(el=>el.dataset.expenseDayBody===key);
+      const icon=[...document.querySelectorAll('[data-expense-day-icon]')].find(el=>el.dataset.expenseDayIcon===key);
+      if(!body)return;
+      const willOpen=body.classList.contains('hidden');
+      body.classList.toggle('hidden',!willOpen);
+      if(icon)icon.classList.toggle('rotate-180',willOpen);
+    }
+
     function renderExpenses(){
-      const list=document.getElementById('expense-list'); list.innerHTML='';
+      const list=document.getElementById('expense-list');
+      list.innerHTML='';
       const filtered=currentCategoryFilter==='全部'?expenses:expenses.filter(e=>e.category===currentCategoryFilter);
-      let displayTotalTwd=0, displayTotalJpy=0;
+      let displayTotalTwd=0,displayTotalJpy=0;
       filtered.forEach(item=>{
         const amount=Number(item.amount)||0;
-        displayTotalTwd += item.currency==='JPY'?amount*currentExchangeRate:amount;
-        displayTotalJpy += item.currency==='JPY'?amount:amount/currentExchangeRate;
+        displayTotalTwd+=item.currency==='JPY'?amount*currentExchangeRate:amount;
+        displayTotalJpy+=item.currency==='JPY'?amount:amount/currentExchangeRate;
       });
+
+      const groups=[];
+      const groupMap=new Map();
       filtered.forEach(item=>{
-        const div=document.createElement('div'); div.className='p-2.5 bg-paper rounded-xl border border-sand/60';
-        const approxTwd=item.currency==='JPY'?Math.round(item.amount*currentExchangeRate):Math.round(item.amount);
-        div.innerHTML=`<div class="flex justify-between items-center gap-2 cursor-pointer" onclick="toggleExpenseDetail(${item.id})">
-          <div class="flex items-center gap-2 min-w-0"><div class="min-w-0"><div class="font-bold text-wood truncate">${item.note}</div><div class="text-[10px] text-gray-400"><span class="bg-skyLight text-skyBlue px-1.5 py-0.5 rounded font-bold mr-1">${item.category}</span> ・ ${item.payMethod} ・ ${item.time}</div></div></div>
-          <div class="text-right flex-shrink-0"><div class="font-bold text-torii">${item.currency==='JPY'?'¥':'NT$'} ${Number(item.amount).toLocaleString()}</div><div class="text-[9px] text-gray-400">約 NT$${approxTwd.toLocaleString()}</div></div>
-        </div>
-        <div id="expense-detail-${item.id}" class="hidden pt-3 mt-2 border-t border-dashed space-y-2">
-          ${item.receiptImage?`<button class="w-full" onclick="event.stopPropagation();showReceiptPhoto(${item.id})">${mediaImgTag(item.receiptImage,'receipt-preview','收據照片')}</button>`:'<div class="text-[10px] text-gray-400">此筆沒有收據照片</div>'}
-          <div class="flex gap-2"><button onclick="event.stopPropagation();editExpense(${item.id})" class="flex-1 py-2 bg-skyLight text-skyBlue rounded-xl font-bold btn-press"><i class="fa-solid fa-pen"></i> 編輯金額/資訊</button><button onclick="event.stopPropagation();deleteExpense(${item.id})" class="px-3 py-2 bg-sakuraLight text-torii rounded-xl btn-press"><i class="fa-solid fa-trash"></i></button></div>
-        </div>`;
-        list.appendChild(div);
+        const info=expenseDateInfo(item);
+        if(!groupMap.has(info.key)){
+          const g={key:info.key,label:info.label,items:[]};
+          groupMap.set(info.key,g);groups.push(g);
+        }
+        groupMap.get(info.key).items.push(item);
       });
+
+      if(!groups.length){
+        list.innerHTML='<div class="text-center text-gray-400 py-6">目前沒有符合此分類的支出。</div>';
+      }
+
+      groups.forEach(group=>{
+        const dayTwd=group.items.reduce((sum,item)=>{
+          const amount=Number(item.amount)||0;
+          return sum+(item.currency==='JPY'?amount*currentExchangeRate:amount);
+        },0);
+        const wrap=document.createElement('div');
+        wrap.className='bg-paper rounded-2xl border border-sand/70 overflow-hidden';
+        wrap.innerHTML=`
+          <button type="button" onclick="toggleExpenseDateGroup('${group.key.replace(/'/g,"\\'")}')" class="w-full p-3 flex items-center justify-between gap-3 text-left btn-press">
+            <div class="min-w-0">
+              <div class="font-bold text-wood">${group.label}</div>
+              <div class="text-[10px] text-gray-400 mt-0.5">${group.items.length} 筆消費</div>
+            </div>
+            <div class="flex items-center gap-3 shrink-0">
+              <div class="text-right"><div class="font-bold text-torii">約 NT$ ${Math.round(dayTwd).toLocaleString()}</div><div class="text-[9px] text-gray-400">點擊展開明細</div></div>
+              <i data-expense-day-icon="${group.key}" class="fa-solid fa-chevron-down text-gray-400 transition-transform"></i>
+            </div>
+          </button>
+          <div data-expense-day-body="${group.key}" class="hidden border-t border-dashed border-sand p-2.5 space-y-2"></div>`;
+        list.appendChild(wrap);
+        const body=wrap.querySelector('[data-expense-day-body]');
+        group.items.forEach(item=>{
+          const amount=Number(item.amount)||0;
+          const approxTwd=item.currency==='JPY'?Math.round(amount*currentExchangeRate):Math.round(amount);
+          const row=document.createElement('div');
+          row.className='p-2.5 bg-card rounded-xl border border-sand/60';
+          row.innerHTML=`<div class="flex justify-between items-center gap-2 cursor-pointer" onclick="toggleExpenseDetail(${item.id})">
+            <div class="min-w-0 flex-1">
+              <div class="font-bold text-wood truncate">${item.note}</div>
+              <div class="text-[10px] text-gray-400 mt-0.5"><span class="bg-skyLight text-skyBlue px-1.5 py-0.5 rounded font-bold mr-1">${item.category}</span> ・ ${item.payMethod}${expenseTimeOnly(item)?` ・ ${expenseTimeOnly(item)}`:''}</div>
+            </div>
+            <div class="text-right shrink-0"><div class="font-bold text-torii">${item.currency==='JPY'?'¥':'NT$'} ${amount.toLocaleString()}</div><div class="text-[9px] text-gray-400">約 NT$${approxTwd.toLocaleString()}</div></div>
+          </div>
+          <div id="expense-detail-${item.id}" class="hidden pt-3 mt-2 border-t border-dashed space-y-2">
+            ${item.receiptImage?`<button class="w-full" onclick="event.stopPropagation();showReceiptPhoto(${item.id})">${mediaImgTag(item.receiptImage,'receipt-preview','收據照片')}</button>`:'<div class="text-[10px] text-gray-400">此筆沒有收據照片</div>'}
+            <div class="flex gap-2"><button onclick="event.stopPropagation();editExpense(${item.id})" class="flex-1 py-2 bg-skyLight text-skyBlue rounded-xl font-bold btn-press"><i class="fa-solid fa-pen"></i> 編輯金額/資訊</button><button onclick="event.stopPropagation();deleteExpense(${item.id})" class="px-3 py-2 bg-sakuraLight text-torii rounded-xl btn-press"><i class="fa-solid fa-trash"></i></button></div>
+          </div>`;
+          body.appendChild(row);
+        });
+      });
+
       hydrateMediaImages(list);
       const spentTwd=expenses.reduce((sum,item)=>{const amount=Number(item.amount)||0;return sum+(item.currency==='JPY'?amount*currentExchangeRate:amount)},0);
       document.getElementById('total-jpy').innerText=Math.round(displayTotalJpy).toLocaleString();
       document.getElementById('total-twd').innerText=Math.round(displayTotalTwd).toLocaleString();
       document.getElementById('rate-display').innerText=currentExchangeRate;
       const label=document.getElementById('expense-total-label');
-      if(label)label.innerHTML=`${currentCategoryFilter==='全部'?'總累計支出':currentCategoryFilter+'累計支出'} (預設匯率 <span id="rate-display">${currentExchangeRate}</span>)`;
+      if(label)label.innerText=currentCategoryFilter==='全部'?'總累計支出':currentCategoryFilter+'累計支出';
       renderBudget(Math.round(spentTwd));
     }
     function renderBudget(spentTwd){
