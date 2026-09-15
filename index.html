@@ -150,9 +150,12 @@
     .keep-text-2xl { font-size:24px !important; line-height:2rem !important; }
     .keep-text-3xl { font-size:30px !important; line-height:2.25rem !important; }
     .expense-filter-btn.active { background:rgba(255,255,255,.45) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.65); }
-    #budget-percent { font-size:14px !important; }
+    #budget-percent { font-size:12px !important; }
     #budget-spent, #budget-left { font-size:10px !important; }
     #total-jpy, #rate-display { font-size:12px !important; }
+
+    #expense-total-label, #expense-budget-label { font-weight:500; }
+    #total-jpy, #budget-percent { font-size:12px !important; line-height:1.35rem !important; }
 
 
     /* === v14.1：手機固定次選單 === */
@@ -497,9 +500,9 @@
             <div class="text-xs opacity-90 mt-2">日幣總額: ¥<span id="total-jpy">0</span></div>
           </div>
           <div class="text-right min-w-0">
-            <div class="text-[10px] opacity-80">旅遊總預算</div>
+            <div id="expense-budget-label" class="text-xs opacity-80">旅遊總預算</div>
             <div class="text-2xl keep-text-2xl font-bold mt-2">NT$ <span id="budget-total">80,000</span></div>
-            <div class="text-sm font-bold mt-2">已使用 <span id="budget-percent">0</span>%</div>
+            <div class="text-xs opacity-90 mt-2">已使用 <span id="budget-percent">0</span>%</div>
           </div>
         </div>
 
@@ -1505,13 +1508,14 @@
         .slice(0,4);
     }
 
-    function createReceiptExpense(amount,receiptImage,category){
+    function createReceiptExpense(amount,receiptImage,category,title){
       const id=Date.now();
       const finalCategory=category||'購物';
       const defaultNotes={餐飲:'餐飲消費',交通:'交通支出',購物:'購物消費',票券:'票券支出',伴手禮:'伴手禮購買',其他:'其他支出'};
+      const finalTitle=String(title||'').trim()||defaultNotes[finalCategory]||'發票相片拍錄';
       expenses.unshift({
         id,
-        note:defaultNotes[finalCategory]||'發票相片拍錄',
+        note:finalTitle,
         amount:Number(amount)||0,
         currency:'JPY',
         category:finalCategory,
@@ -1542,6 +1546,10 @@
         <div class="text-[10px] text-gray-400">快速辨識約 ${(elapsedMs/1000).toFixed(1)} 秒。系統不再直接採用最大數字，請從候選值確認總金額。</div>
         ${receiptImage?`<img src="${receiptImage}" class="w-full max-h-36 object-contain rounded-xl bg-paper border border-sand">`:''}
         <div class="space-y-2">${candidateHtml}</div>
+        <div>
+          <label class="block text-[10px] text-gray-400 mb-1">記帳標題</label>
+          <input id="ocr-expense-title" type="text" value="" placeholder="例如：晚餐、藥妝、伴手禮" class="w-full p-3 bg-paper rounded-xl border border-sand font-bold text-base">
+        </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <div>
             <label class="block text-[10px] text-gray-400 mb-1">消費分類</label>
@@ -1573,12 +1581,13 @@
       if(btn?.disabled)return;
       const amount=Number(document.getElementById('ocr-final-amount')?.value)||0;
       const category=document.getElementById('ocr-expense-category')?.value||'購物';
+      const title=document.getElementById('ocr-expense-title')?.value?.trim()||'';
       if(amount<=0)return alert('請輸入正確的消費金額');
       if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-1"></i>儲存中…';}
       try{
         const pending=window._pendingReceiptImage||'';
         const receiptRef=pending?await putMediaDataURL(pending,'receipt'):'';
-        createReceiptExpense(amount,receiptRef,category);
+        createReceiptExpense(amount,receiptRef,category,title);
         window._pendingReceiptImage='';
         closeGlobalModal();
         const status=document.getElementById('ocr-status');
